@@ -1,54 +1,29 @@
-#ifndef SGFX_CANVAS_H
-#define SGFX_CANVAS_H
+#pragma once
 
 #include <sgfx/color.hpp>
 #include <sgfx/primitive_types.hpp>
+#include <sgfx/widget.hpp>
+#include <sgfx/window.hpp>
 
-#include <vector>
+namespace sgfx {
 
-namespace sgfx
-{
-	class canvas
-	{
-		public:
-		explicit canvas(dimension size):
-			pixels_(size.w*size.h),
-			size_{size}
-		{}
-		
-		std::uint16_t width() const { return size_.w; }
-		std::uint16_t height() const { return size_.h; }
-		
-		auto pixels() { return pixels_.data(); }
-		auto pixels() const { return pixels_.data(); }
-		
-		private:
-		std::vector<color::rgb_color> pixels_;
-		dimension size_;
-	};
-	
-	class canvas_view
-	{
-		public:
-		template <typename T>
-		canvas_view(T& target):
-			pixels_{target.pixels()},
-			size_{target.width(),target.height()}
-		{}
-		
-		std::uint16_t width() const { return size_.w; }
-		std::uint16_t height() const { return size_.h; }
-		
-		auto pixels() { return pixels_; }
-		auto pixels() const { return pixels_; }
-		
-		private:
-		color::rgb_color* pixels_;
-		dimension size_;
-	};
-	
-	void draw(canvas_view target, const canvas& img, point top_left);
-	void draw(canvas_view target, const canvas& img, point top_left, color::rgb_color color_key);
-}
+class canvas : public widget {
+  public:
+	explicit canvas(dimension size) : size_{size}, pixels_{static_cast<unsigned>(size.width * size.height)} {}
 
-#endif
+	std::uint16_t width() const noexcept override { return size_.width; }
+	std::uint16_t height() const noexcept override { return size_.height; }
+
+	std::vector<color::rgb_color>& pixels() noexcept override { return pixels_; }
+	const std::vector<color::rgb_color>& pixels() const noexcept override { return pixels_; }
+
+	static canvas colored(dimension size, color::rgb_color col);
+
+  private:
+	const dimension size_;
+	std::vector<color::rgb_color> pixels_;
+};
+
+void draw(widget& target, const canvas& img, point top_left);
+
+}  // namespace sgfx

@@ -1,118 +1,136 @@
+// This file is part of the "pong" project, http://github.com/keithoma/pong>
+//   (c) 2019-2019 Christian Parpart <christian@parpart.family>
+//   (c) 2019-2019 Kei Thoma <thomakmj@gmail.com>
+//
+// Licensed under the MIT License (the "License"); you may not use this
+// file except in compliance with the License. You may obtain a copy of
+// the License at: http://opensource.org/licenses/MIT
+
 #include <sgfx/primitives.hpp>
 
 #include <algorithm>
+#include <iostream>
+#include <tuple>
+#include <functional>
+#include <cassert>
 
-void sgfx::plot(canvas_view target, point p, color::rgb_color col)
+using namespace std::placeholders;
+using namespace std;
+
+namespace sgfx {
+
+void plot(widget& target, point p, color::rgb_color col)
 {
-	target.pixels()[p.y*target.width()+p.x]=col;
+	p.x = min(p.x, static_cast<int>(target.width()) - 1);
+	p.y = min(p.y, static_cast<int>(target.height()) - 1);
+
+	target.pixels()[p.y * target.width() + p.x] = col;
 }
 
-void sgfx::clear(canvas_view target, color::rgb_color col)
+void clear(widget& target, color::rgb_color col)
 {
-	std::fill_n(target.pixels(),target.width()*target.height(),col);
+	fill(begin(target.pixels()), end(target.pixels()), col);
 }
 
-void sgfx::hline(canvas_view target, point p, std::uint16_t length, color::rgb_color col)
+void hline(widget& target, point p, std::uint16_t length, color::rgb_color col)
 {
-	if(p.y<0 || p.y>=target.height())
-		return;
-	
-	int start=std::max(p.x,0);
-	int stop=std::min(static_cast<int>(target.width()),p.x+length);
-	
-	if(stop>start)
-		std::fill_n(&target.pixels()[p.y*target.width()+start],stop-start,col);
-}
-
-void sgfx::vline(canvas_view target, point p, std::uint16_t length, color::rgb_color col)
-{
-	if(p.x<0 || p.x>=target.width())
-		return;
-		
-	int start=std::max(p.y,0);
-	int stop=std::min(static_cast<int>(target.height()),p.y+length);
-	
-	while(start!=stop)
-		plot(target,{p.x,start++},col);
-}
-
-void sgfx::fill(canvas_view target, rectangle rect, color::rgb_color col)
-{
-	int start_y=std::max(rect.top_left.y,0);
-	int stop_y=std::min(static_cast<int>(target.height()),rect.top_left.y+rect.size.h);
-	
-	while(start_y!=stop_y)
-		hline(target,{rect.top_left.x,start_y++},rect.size.w,col);
-}
-
-void sgfx::line(canvas_view target, point p0, point p1, color::rgb_color col)
-{
-	if(p0.y==p1.y)
-	{
-		hline(target,p0,p1.x-p0.x,col);
-		return;
-	}
-	
-	if(p0.x==p1.x)
-	{
-		vline(target,p0,p1.y-p0.y,col);
-		return;
-	}
-	
-	const auto xline=[&](point p0, point p1)
-	{
-		auto delta_x=p1.x-p0.x;
-		auto delta_y=p1.y-p0.y;
-		auto error=2*delta_y-delta_x;
-		
-		auto y=p0.y;
-		auto sign=delta_y>0?1:-1;
-		delta_y*=sign;
-		for(int x=p0.x;x<p1.x;++x)
-		{
-			plot(target,{x,y},col);
-			if(error>0)
-			{
-				y+=sign;
-				error-=2*delta_x;
-			}
-			error+=2*delta_y;
+	if (p.y < target.height()) {
+		const int xEnd = min(p.x + length, static_cast<int>(target.width()));
+		while (p.x < xEnd) {
+			plot(target, p, col);
+			++p.x;
 		}
-	};
-	
-	const auto yline=[&](point p0, point p1)
-	{
-		auto delta_x=p1.x-p0.x;
-		auto delta_y=p1.y-p0.y;
-		auto error=2*delta_x-delta_y;
-		
-		auto x=p0.x;
-		auto sign=delta_x>0?1:-1;
-		delta_x*=sign;
-		for(int y=p0.y;y<p1.y;++y)
-		{
-			plot(target,{x,y},col);
-			if(error>0)
-			{
-				x+=sign;
-				error-=2*delta_y;
-			}
-			error+=2*delta_x;
-		}
-	};
-	
-	if(std::abs(p1.y-p0.y)<std::abs(p1.x-p0.x))
-	{
-		if(p0.x>p1.x)
-			xline(p1,p0);
-		else
-			xline(p0,p1);
 	}
+}
+
+void vline(widget& target, point p, std::uint16_t length, color::rgb_color col)
+{
+	if (p.x < target.width()) {
+		const int yEnd = min(p.y + length, static_cast<int>(target.height()));
+		while (p.y < yEnd) {
+			plot(target, p, col);
+			++p.y;
+		}
+	}
+}
+
+void fill(widget& target, rectangle rect, color::rgb_color col)
+{
+	if (rect.top_left == point{0, 0} && rect.size == dimension{target.width(), target.height()})
+		clear(target, col);
 	else
-	{
-		if(p0.y>p1.y)
-			yline(p1,p0);
-		else
-			yline(p0,p1);
+		for (int i = 0; i < rect.size.height; ++i)
+			hline(target, {rect.top_left.x, rect.top_left.y + static_cast<int>(i)}, rect.size.width, col);
+}
+
+/**
+ * Breseham Algorithm line point generator.
+ *
+ * @param A indexed access to point coordinate, where 0 means X and 1 means Y.
+ * @param B indexed access to point coordinate, where 0 means X and 1 means Y.
+ *
+ * @param p0 first point
+ * @param p1 second point
+ * @param drawer function to invoke for each generated point.
+ */
+template <const size_t A, const size_t B>
+constexpr void breseham(point p0, point p1, std::function<void(point const&)> sink) {
+	static_assert(A == 0 || A == 1, "A must be 0 (for X) or 1 (for Y).");
+	static_assert(B == 0 || B == 1, "B must be 0 (for X) or 1 (for Y).");
+	static_assert(A != B, "A must not be equal to B.");
+	assert(p0.y <= p1.y && "Must draw from top to bottom (p0.y <= p1.y).");
+
+	// compute delta x/y and the increment value for the walking coordinate
+	auto const [delta, increment] = [](auto p0, auto p1) {
+		if (const auto delta = p1 - p0; get<B>(delta) >= 0)
+			return make_tuple(delta, +1);
+		else {
+			const auto sgn = int{A == 0 /*A is X*/ ? +1 : -1};
+			return make_tuple(point{sgn * delta.x, -sgn * delta.y}, -1);
+		}
+	}(p0, p1);
+
+	auto big_d = int{2 * get<B>(delta) - get<A>(delta)};
+	auto p = p0;
+	while (get<A>(p) <= get<A>(p1)) {
+		sink(p);
+		if (big_d > 0) {
+			big_d -= 2 * get<A>(delta);
+			get<B>(p) += increment;
+		}
+		++get<A>(p);
+		big_d += 2 * get<B>(delta);
 	}
 }
+
+void line(widget& target, point p0, point p1, color::rgb_color col)
+{
+	if (p0 == p1) {
+		// point
+		plot(target, p0, col);
+	}
+	else if (p0.y == p1.y) {
+		// vertical line
+		hline(target, p0, abs(p1.x - p0.x), col);
+	}
+	else if (p0.x == p1.x) {
+		// horizontal line
+		vline(target, p0, abs(p1.y - p0.y), col);
+	}
+	else if (abs(p1.y - p0.y) < abs(p1.x - p0.x)) {
+		// non-trivial line: with the power of Bresenham
+		if (p0.x > p1.x)
+			breseham<0, 1>(p1, p0, bind(plot, ref(target), _1, col));
+		else
+			breseham<0, 1>(p0, p1, bind(plot, ref(target), _1, col));
+	}
+	else {
+		// non-trivial line: with the power of Bresenham
+		if (p0.y > p1.y)
+			breseham<1, 0>(p1, p0, bind(plot, ref(target), _1, col));
+		else
+			breseham<1, 0>(p0, p1, bind(plot, ref(target), _1, col));
+	}
+}
+
+}  // namespace sgfx
