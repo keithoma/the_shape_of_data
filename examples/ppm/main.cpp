@@ -23,14 +23,14 @@ int main(int argc, char* argv[])
 	while(main_window.handle_events() && !main_window.should_close())
 	{
 		if(main_window.is_pressed(key_id{'w'}))
-			fg_pos.y-=1;
+			fg_pos.y -= 1;
 		if(main_window.is_pressed(key_id{'s'}))
-			fg_pos.y+=1;
+			fg_pos.y += 1;
 			
 		if(main_window.is_pressed(key_id{'a'}))
-			fg_pos.x-=1;
+			fg_pos.x -= 1;
 		if(main_window.is_pressed(key_id{'d'}))
-			fg_pos.x+=1;
+			fg_pos.x += 1;
 			
 		if(main_window.is_pressed(key::escape))
 			break;
