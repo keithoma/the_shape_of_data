@@ -12,6 +12,7 @@ namespace sgfx {
  */
 class widget {
   public:
+	// virtual destructor is usually required in a base class
 	virtual ~widget() = default;
 
 	virtual std::uint16_t width() const noexcept = 0;
