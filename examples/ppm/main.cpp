@@ -39,8 +39,8 @@ int main(int argc, char* argv[])
 		{
 			if(plus_released)
 			{
-				save_ppm(main_window,"screenshot.ppm");
-				plus_released=false;
+				save_ppm(main_window, "screenshot.ppm");
+				plus_released = false;
 			}
 		}
 		else

@@ -12,7 +12,7 @@ canvas sgfx::load_ppm(const std::string& path)
 }
 
 
-void sgfx::save_ppm(canvas_view img, const std::string& filename)
+void sgfx::save_ppm(widget& img, const std::string& filename)
 {
 }
 
@@ -25,15 +25,15 @@ void sgfx::save_rle(const rle_image& src, const std::string& filename)
 {
 }
 
-rle_image sgfx::rle_encode(canvas_view src)
+rle_image sgfx::rle_encode(widget& src)
 {
 	return {};
 }
 
-void sgfx::draw(canvas_view target, const rle_image& source, point top_left)
+void sgfx::draw(widget& target, const rle_image& source, point top_left)
 {
 }
 
-void sgfx::draw(canvas_view target, const rle_image& source, point top_left, color::rgb_color colorkey)
+void sgfx::draw(widget& target, const rle_image& source, point top_left, color::rgb_color colorkey)
 {
 }
