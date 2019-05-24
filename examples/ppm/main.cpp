@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 		draw(main_window, bg_img, bg_pos);
 		draw(main_window, bg_img, bg_pos - point{0, bg_img.height()});
 
-		draw(main_window, fg_img.colored(fg_img.size(), color::cyan), fg_pos);
+		draw(main_window, canvas::colored(fg_img.size(), color::cyan), fg_pos);
 		
 		main_window.show();
 	};

@@ -12,18 +12,21 @@ using namespace sgfx;
 canvas sgfx::load_ppm(const std::string& path)
 {
 	// open the file
-	ifstream ppm_file;
-	ppm_file.open(path);
+	ifstream ppm_file{path};
 
+#if 0
 	// create a canvas
 	canvas target{{640, 480}};
 	string line;
 	while(getline(ppm_file, line)) {
-    	plot(taget, line, getline(ppm_file, line));
+    	plot(target, line, getline(ppm_file, line));
 	}
 	ppm_file.close();
 
 	return target;
+#else
+	return canvas{dimension{1024, 768}};
+#endif
 }
 
 
