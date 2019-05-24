@@ -3,6 +3,7 @@
 
 #include <sgfx/canvas.hpp>
 #include <sgfx/color.hpp>
+#include <sgfx/primitives.hpp>
 
 #include <string>
 

@@ -1,14 +1,29 @@
 #include <sgfx/image.hpp>
+#include <sgfx/primitives.hpp>
 
 #include <fstream>
 #include <string>
 #include <stdexcept>
 
+using namespace std;
+
 using namespace sgfx;
 
 canvas sgfx::load_ppm(const std::string& path)
 {
-	return canvas{{10,10}};
+	// open the file
+	ifstream ppm_file;
+	ppm_file.open(path);
+
+	// create a canvas
+	canvas target{{640, 480}};
+	string line;
+	while(getline(ppm_file, line)) {
+    	plot(taget, line, getline(ppm_file, line));
+	}
+	ppm_file.close();
+
+	return target;
 }
 
 
