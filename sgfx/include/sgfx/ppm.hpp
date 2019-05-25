@@ -1,6 +1,7 @@
 #include <sgfx/canvas.hpp>
 #include <sgfx/color.hpp>
 #include <sgfx/primitive_types.hpp>
+#include <cstddef>
 
 namespace sgfx::ppm {
 
@@ -33,10 +34,9 @@ class Parser {
     bool eof() const noexcept { return !source_ || offset_ >= source_->size() || currentToken_.token == Token::Eof; }
     char currentChar() const noexcept;
     char peekChar() const noexcept;
-    char nextChar();
+    char nextChar() noexcept;
     TokenInfo currentToken() const noexcept { return currentToken_; }
     TokenInfo consumeToken();
-    TokenInfo consumeTokenInternal();
     std::string consumeToken(Token token);
 
     // syntactical analysis
@@ -47,7 +47,7 @@ class Parser {
 
   private:
     std::string const* source_ = nullptr;
-    size_t offset_{0};
+    std::size_t offset_{0};
     TokenInfo currentToken_{Token::Invalid, ""};
 };
 

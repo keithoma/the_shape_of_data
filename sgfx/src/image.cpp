@@ -31,16 +31,11 @@ canvas load_ppm(const std::string& _path)
 
     ifs.read(data.data(), fileSize);
     if (static_cast<size_t>(ifs.tellg()) < static_cast<size_t>(fileSize))
-    {
         throw runtime_error{(ostringstream{} << "Expected to read " << fileSize << " bytes but only read "
                                              << ifs.tellg() << " bytes.")
                                 .str()};
-    }
 
-    let parser = ppm::Parser{};
-    let image = parser.parseString(data);
-
-    return image;
+    return ppm::Parser{}.parseString(data);
 }
 
 void save_ppm(widget const& image, const std::string& filename)
