@@ -1,5 +1,6 @@
 #include <sgfx/canvas.hpp>
 #include <sgfx/color.hpp>
+#include <sgfx/image.hpp>
 #include <sgfx/key.hpp>
 #include <sgfx/primitives.hpp>
 #include <sgfx/window.hpp>
@@ -39,7 +40,7 @@ int main(int argc, char* argv[])
 		rectangle right{{half_w,0},{half_w,main_window.height()}};
 		fill(main_window,left,color::black);
 		fill(main_window,right,color::white);
-		draw(main_window,img,pos,color::cyan);
+		draw(main_window,img,pos/*,color::cyan*/);
 		
 		main_window.show();
 	};

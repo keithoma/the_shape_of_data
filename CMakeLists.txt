@@ -8,7 +8,7 @@ option(SGFX_EXAMPLES "Build SGFX examples" ON)
 add_subdirectory(sgfx)
 
 if(SGFX_EXAMPLES)
-#	add_subdirectory(examples/colorkey)
+	add_subdirectory(examples/colorkey)
 #	add_subdirectory(examples/huffman)
 	add_subdirectory(examples/ppm)
 #	add_subdirectory(examples/rle)
