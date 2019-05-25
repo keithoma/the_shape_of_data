@@ -16,7 +16,13 @@ else()
 	add_definitions(-Werror)
 endif(MSVC)
 
-add_library(sgfx STATIC src/canvas.cpp src/primitives.cpp src/window.cpp src/image.cpp)
+add_library(sgfx STATIC
+	src/canvas.cpp
+	src/image.cpp
+	src/ppm.cpp
+	src/primitives.cpp
+	src/window.cpp
+)
 set_target_properties(sgfx PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 target_include_directories(sgfx PUBLIC include)
 target_link_libraries(sgfx glfw GLEW::GLEW OpenGL::GL)

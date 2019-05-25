@@ -1,57 +1,84 @@
+#include <sgfx/color.hpp>
 #include <sgfx/image.hpp>
+#include <sgfx/ppm.hpp>
+#include <sgfx/primitive_types.hpp>
 #include <sgfx/primitives.hpp>
 
+#include <algorithm>
+#include <filesystem>
 #include <fstream>
-#include <string>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
 using namespace std;
 
-using namespace sgfx;
+#define let auto
 
-canvas sgfx::load_ppm(const std::string& path)
+namespace sgfx {
+
+canvas load_ppm(const std::string& _path)
 {
-	// open the file
-	ifstream ppm_file{path};
+    filesystem::path path{_path};
+    let fileSize = std::filesystem::file_size(path);
 
-#if 0
-	// create a canvas
-	canvas target{{640, 480}};
-	string line;
-	while(getline(ppm_file, line)) {
-    	plot(target, line, getline(ppm_file, line));
-	}
-	ppm_file.close();
+    let data = string{};
+    data.resize(fileSize);
 
-	return target;
-#else
-	return canvas{dimension{1024, 768}};
-#endif
+    ifstream ifs{path, ios::binary};
+    if (!ifs.is_open())
+        throw runtime_error("Could not open file.");
+
+    ifs.read(data.data(), fileSize);
+    if (static_cast<size_t>(ifs.tellg()) < static_cast<size_t>(fileSize))
+    {
+        throw runtime_error{(ostringstream{} << "Expected to read " << fileSize << " bytes but only read "
+                                             << ifs.tellg() << " bytes.")
+                                .str()};
+    }
+
+    let parser = ppm::Parser{};
+    let image = parser.parseString(data);
+
+    return image;
 }
 
+void save_ppm(widget const& image, const std::string& filename)
+{
+    let os = ofstream{filename};
 
-void sgfx::save_ppm(widget& img, const std::string& filename)
+    os << "P3\n"
+       << "# Created by Gods of Code\n"
+       << image.width() << ' ' << image.height() << '\n'
+       << "255\n";
+
+    let const pixelWriter = [&](let pixel) {
+        os << pixel.red() << ' ' << pixel.green() << ' ' << pixel.blue() << '\n';
+    };
+
+    for_each(cbegin(image.pixels()), cend(image.pixels()), pixelWriter);
+}
+
+rle_image load_rle(const std::string& filename)
+{
+    return {};
+}
+
+void save_rle(const rle_image& src, const std::string& filename)
 {
 }
 
-rle_image sgfx::load_rle(const std::string& filename)
+rle_image rle_encode(widget& src)
 {
-	return {};
+    return {};
 }
 
-void sgfx::save_rle(const rle_image& src, const std::string& filename)
-{
-}
-
-rle_image sgfx::rle_encode(widget& src)
-{
-	return {};
-}
-
-void sgfx::draw(widget& target, const rle_image& source, point top_left)
+void draw(widget& target, const rle_image& source, point top_left)
 {
 }
 
-void sgfx::draw(widget& target, const rle_image& source, point top_left, color::rgb_color colorkey)
+void draw(widget& target, const rle_image& source, point top_left, color::rgb_color colorkey)
 {
 }
+
+}  // namespace sgfx
