@@ -1,33 +1,13 @@
 cmake_minimum_required(VERSION 2.8.11)
-
-include(CheckCXXCompilerFlag)
-
-function(enable_cxx_compiler_flag_if_supported flag)
-	string(FIND "${CMAKE_CXX_FLAGS}" "${flag}" flag_already_set)
-	if(flag_already_set EQUAL -1)
-		check_cxx_compiler_flag("${flag}" flag_supported)
-		if(flag_supported)
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}" PARENT_SCOPE)
-		endif()
-		unset(flag_supported CACHE)
-	endif()
-endfunction()
-
 project(snake_example)
 
-set(CMAKE_CXX_STANDARD 17)
-enable_cxx_compiler_flag_if_supported("-Wall")
-enable_cxx_compiler_flag_if_supported("-pedantic")
-enable_cxx_compiler_flag_if_supported("-Werror")
-enable_cxx_compiler_flag_if_supported("-Wno-error=attributes")
+if (NOT MSVC)
+	add_definitions("-pedantic")
+	add_definitions("-Wall")
+	add_definitions("-Werror")
+	add_definitions("-Wno-error=attributes")
+endif()
 
 add_executable(snake_example main.cpp)
-
-find_package(glfw3)
-find_package(GLEW)
-find_package(OpenGL)
-
-add_subdirectory(../../sgfx build)
-target_link_libraries(snake_example sgfx glfw GLEW::GLEW OpenGL::GL)
-
-install(TARGETS snake_example DESTINATION bin)
+set_target_properties(snake_example PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_link_libraries(snake_example sgfx)
