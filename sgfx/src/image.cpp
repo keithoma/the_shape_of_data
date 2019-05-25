@@ -61,6 +61,19 @@ void save_ppm(widget const& image, const std::string& filename)
 
 rle_image load_rle(const std::string& filename)
 {
+    /*
+		Das binäre Dateiformat ist wie folgt aufgebaut:
+
+		Es beginnt mit Bildbreite gefolgt von Höhe, jeweils als 16 Bit unsigned int in little endian
+		Danach kommen zeilenweise RLE codierte Daten. Für jede Zeile des Bildes gibt es
+			Eine 16-bit unsigned int für die Anzahl der "Runs", also der unterschiedlichen Farbbereiche
+			Danach die Daten für jeden "Run", also Anzahl der Runs mal:
+				Die Länge des Runs als 8-bit unsigned int
+				Der Rotwert der Farbe als 8-bit unsigned int
+				Der Grünwert der Farbe als 8-bit unsigned int
+				Der Blauwert der Farbe als 8-bit unsigned int
+	*/
+
     return {};
 }
 
