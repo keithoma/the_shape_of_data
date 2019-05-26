@@ -1,33 +1,9 @@
 cmake_minimum_required(VERSION 2.8.11)
-
-include(CheckCXXCompilerFlag)
-
-function(enable_cxx_compiler_flag_if_supported flag)
-	string(FIND "${CMAKE_CXX_FLAGS}" "${flag}" flag_already_set)
-	if(flag_already_set EQUAL -1)
-		check_cxx_compiler_flag("${flag}" flag_supported)
-		if(flag_supported)
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}" PARENT_SCOPE)
-		endif()
-		unset(flag_supported CACHE)
-	endif()
-endfunction()
-
 project(rle_save)
 
-set(CMAKE_CXX_STANDARD 17)
-enable_cxx_compiler_flag_if_supported("-Wall")
-enable_cxx_compiler_flag_if_supported("-pedantic")
-enable_cxx_compiler_flag_if_supported("-Werror")
-enable_cxx_compiler_flag_if_supported("-Wno-error=attributes")
-
 add_executable(rle_save main.cpp)
-
-find_package(glfw3)
-find_package(GLEW)
-find_package(OpenGL)
-
-add_subdirectory(../../sgfx build)
-target_link_libraries(rle_save sgfx glfw GLEW::GLEW OpenGL::GL)
-
-install(TARGETS rle_save DESTINATION bin)
+set_target_properties(rle_save PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_link_libraries(rle_save sgfx)
+if (NOT MSVC)
+	target_compile_definitions(rle_save PRIVATE "-pedantic" "-Wall" "-Werror" "Wno-error=attributes")
+endif ()
