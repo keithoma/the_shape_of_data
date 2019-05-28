@@ -17,6 +17,24 @@ using namespace std;
 
 #define let auto /* Pure provocation with respect to my dire love to F# & my hate to C++ auto keyword. */
 
+namespace {
+
+template <typename T>
+T read(std::istream& source)
+{
+	T value;
+	source.read((char*) &value, sizeof(value));
+	return value;
+}
+
+template <typename T>
+void write(std::ostream& os, T const& value)
+{
+    os.write((char*) &value, sizeof(value));
+}
+
+}  // namespace
+
 namespace sgfx {
 
 canvas load_ppm(const std::string& _path)
@@ -56,68 +74,34 @@ void save_ppm(widget const& image, const std::string& filename)
     for_each(cbegin(image.pixels()), cend(image.pixels()), pixelWriter);
 }
 
-class rle_parser {
-  public:
-    static rle_image parse(std::istream& source);
-
-  private:
-    explicit rle_parser(std::istream& source) : source_{source} {}
-    rle_image parse();
-
-    template <typename T>
-    T read()
-    {
-        T value;
-        source_.read((char*) &value, sizeof(value));
-        return value;
-    }
-
-  private:
-    std::istream& source_;
-};
-
-rle_image rle_parser::parse(std::istream& source)
+rle_image load_rle(const std::string& filename)
 {
-    return rle_parser{source}.parse();
-}
+    let in = ifstream{filename, ios::binary};
+    if (!in.is_open())
+        throw std::runtime_error{"Could not open file."};
 
-rle_image rle_parser::parse()
-{
-    let const width = read<uint16_t>();
-    let const height = read<uint16_t>();
+
+
+    let const width = read<uint16_t>(in);
+    let const height = read<uint16_t>(in);
 
     let lines = vector<vector<rle_image::Run>>();
-    while (source_.good())
+    while (in.good())
     {
-        let runs = vector<rle_image::Run>(read<uint16_t>());
+        let runs = vector<rle_image::Run>(read<uint16_t>(in));
 
         for (unsigned i = 0; i < runs.size(); ++i)
         {
-            let const length = read<uint8_t>();
-            let const red = read<uint8_t>();
-            let const green = read<uint8_t>();
-            let const blue = read<uint8_t>();
+            let const length = read<uint8_t>(in);
+            let const red = read<uint8_t>(in);
+            let const green = read<uint8_t>(in);
+            let const blue = read<uint8_t>(in);
             runs[i] = rle_image::Run{length, color::rgb_color{red, green, blue}};
         }
         lines.emplace_back(move(runs));
     }
 
     return rle_image{dimension{width, height}, move(lines)};
-}
-
-rle_image load_rle(const std::string& filename)
-{
-    let ifs = ifstream{filename, ios::binary};
-    if (!ifs.is_open())
-        throw std::runtime_error{"Could not open file."};
-
-    return rle_parser::parse(ifs);
-}
-
-template <typename T>
-void write(std::ostream& os, T const& value)
-{
-    os.write((char*) &value, sizeof(value));
 }
 
 void save_rle(const rle_image& image, const std::string& filename)
@@ -142,32 +126,29 @@ void save_rle(const rle_image& image, const std::string& filename)
 
 rle_image rle_encode(widget& image)
 {
+	using Run = rle_image::Run;
+
     // reads one run, i.e. one color and all up to 255 following colors that match that first color.
-    auto readOne = [&](int x, int y) {
-        auto const color = image[point{x, y}];
+    auto readOne = [&image](int x, int y) -> Run {
+        let const color = image[point{x, y}];
+        let length = uint8_t{1};
         ++x;
-        int length = 1;
-        while (x < image.width() && length <= 255 && image[point{x, y}] == color)
-        {
-            ++length;
-            ++x;
-        }
-        return rle_image::Run{static_cast<uint8_t>(length), color};
+        while (x < image.width() && length < 255 && image[point{x, y}] == color)
+            ++length, ++x;
+        return {length, color};
     };
 
 	vector<rle_image::Row> rows;
     rows.reserve(image.height());
 
     for (int x = 0, y = 0; y < image.height(); x = 0, ++y)
-    {
-        rle_image::Row row;
-        for (auto run = readOne(x, y); run.length > 0; run = readOne(x, y))
-        {
-            x += run.length;
-			row.emplace_back(move(run));
-        }
-        rows.emplace_back(move(row));
-    }
+        rows.emplace_back([&]() {
+			rle_image::Row row;
+			for (auto run = readOne(x, y); run.length > 0; run = readOne(x, y), x += row.back().length)
+				row.emplace_back(move(run));
+			return row;
+		}());
+
     return rle_image{dimension{image.width(), image.height()}, move(rows)};
 }
 
