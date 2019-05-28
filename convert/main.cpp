@@ -14,6 +14,8 @@
 #include <string>
 #include <system_error>
 
+#include <direct.h> // WINDOWS
+
 #if defined(HAVE_IOCTL_H)
 #    include <ioctl.h>
 #endif
@@ -62,9 +64,9 @@ unique_ptr<pipeline::Sink> createSink(string const& format, string const& filena
 int main(int argc, const char* argv[])
 {
     flags::Flags cli;
-    cli.defineString("input-format", 'I', "FORMAT", "Specifies which format the input stream has.");
+    cli.defineString("input-format", 'I', "FORMAT", "Specifies which format the input stream has.", "raw");
     cli.defineString("input-file", 'i', "PATH", "Specifies the path to the input file to read from.");
-    cli.defineString("output-format", 'O', "FORMAT", "Specifies which format the output stream will be.");
+    cli.defineString("output-format", 'O', "FORMAT", "Specifies which format the output stream will be.", "raw");
     cli.defineString("output-file", 'o', "PATH", "Specifies the path to the output file to write to.");
     cli.defineBool("help", 'h', "Shows this help.");
 
@@ -73,7 +75,7 @@ int main(int argc, const char* argv[])
         cerr << "Failed to parse command line arguments. " << ec.message() << endl;
         return EXIT_FAILURE;
     }
-    else if (cli.isSet("help"))
+    else if (cli.getBool("help"))
     {
         string const static header =
             "convert - command line tool for converting some file formats.\n"
@@ -83,6 +85,10 @@ int main(int argc, const char* argv[])
     }
     else
     {
+        char cwd[1024];
+        _getcwd(cwd, sizeof(cwd));
+        cout << "cwd: " << cwd << "\n";
+
         auto const inputFile = cli.getString("input-file");
         auto const inputFormat = cli.getString("input-format");
         auto const outputFile = cli.getString("output-file");
@@ -92,7 +98,7 @@ int main(int argc, const char* argv[])
         auto sink = createSink(outputFormat, outputFile);
 
         auto buffer = pipeline::Buffer{};
-        buffer.reserve(4096);
+        buffer.reserve(128);
 
         while (source->read(buffer))
         {
