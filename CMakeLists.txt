@@ -6,6 +6,7 @@ cmake_policy(SET CMP0028 NEW)
 option(SGFX_EXAMPLES "Build SGFX examples" ON)
 
 add_subdirectory(sgfx)
+add_subdirectory(convert)
 
 if(SGFX_EXAMPLES)
 	add_subdirectory(examples/colorkey)
