@@ -8,6 +8,32 @@ using namespace std;
 
 namespace pipeline {
 
+void Filter::applyFilters(const list<unique_ptr<Filter>>& filters, const Buffer& input,
+                          Buffer* output, bool last)
+{
+    auto i = filters.begin();
+    auto e = filters.end();
+
+    if (i == e)
+    {
+        *output = input;
+        return;
+    }
+
+    (*i)->filter(input, output, last);
+    i++;
+    Buffer tmp;
+    while (i != e)
+    {
+        tmp.swap(*output);
+        (*i)->filter(tmp, output, last);
+        i++;
+    }
+}
+
+// -------------------------------------------------------------------------
+// XXX maybe going to be deleted
+
 RawSource::RawSource(std::unique_ptr<std::istream> owned) : owned_{move(owned)}, source_{*owned_}
 {
 	if (!source_.good())

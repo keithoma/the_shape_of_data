@@ -12,6 +12,8 @@
 
 namespace pipeline {
 
+using Buffer = std::vector<uint8_t>;
+
 // -----------------------------------------------------------------------------
 // Filter API
 
@@ -75,8 +77,6 @@ class HuffmanDecoder : public Filter {
 
 // -----------------------------------------------------------------------------
 // Source API
-
-using Buffer = std::vector<uint8_t>;
 
 class Source {
   public:
