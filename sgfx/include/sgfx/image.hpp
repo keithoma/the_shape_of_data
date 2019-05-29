@@ -32,7 +32,7 @@ class rle_image {
     rle_image(dimension dim, std::vector<Row> rows) : dim_{dim}, rows_{move(rows)} {}
     rle_image() : rle_image{sgfx::dimension{0, 0}, {}} {}
 
-    dimension const& dimension() const noexcept { return dim_; }
+    dimension const& dim() const noexcept { return dim_; }
     size_t row_count() const noexcept { return rows_.size(); }
     Row const& row(size_t i) const noexcept { return rows_[i]; }
     std::vector<Row> const& rows() const noexcept { return rows_; }

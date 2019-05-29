@@ -7,6 +7,7 @@ include(CheckFunctionExists)
 
 CHECK_INCLUDE_FILES(unistd.h HAVE_UNISTD_H)
 CHECK_INCLUDE_FILES(ioctl.h HAVE_IOCTL_H)
+CHECK_INCLUDE_FILES(direct.h HAVE_DIRECT_H)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sysconfig.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/sysconfig.h)
 

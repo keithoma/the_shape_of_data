@@ -28,7 +28,7 @@ inline void copy(Container& input, OutputIterator output)
 template <typename Container, typename F>
 inline void for_each(Container& container, F f)
 {
-    std::for_each(begin(container), end(container), f)
+    std::for_each(begin(container), end(container), f);
 }
 
 template <typename Container, typename F>
@@ -40,7 +40,7 @@ inline void for_each(Container const& container, F f)
 template <typename C, typename D, typename F>
 inline void transform(C const& c, D& d, F f)
 {
-    std::transform(begin(c), end(c), d, f)
+    std::transform(begin(c), end(c), d, f);
 }
 
 }  // namespace ranges

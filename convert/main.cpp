@@ -22,7 +22,9 @@
 #include <string>
 #include <system_error>
 
-#include <direct.h>  // WINDOWS
+#if defined(HAVE_DIRECT_H)
+#    include <direct.h>
+#endif
 
 #if defined(HAVE_IOCTL_H)
 #    include <ioctl.h>
@@ -33,7 +35,7 @@
 #endif
 
 #if !defined(STDOUT_FILENO)
-#    define STDOUT_FILENO 1
+#    define STDOUT_FILENO (1)
 #endif
 
 using namespace std;

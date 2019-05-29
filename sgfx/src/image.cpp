@@ -4,8 +4,11 @@
 #include <sgfx/primitive_types.hpp>
 #include <sgfx/primitives.hpp>
 
+//#include "sysconfig.h"
+
+#include <experimental/filesystem>
+
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -16,6 +19,7 @@
 #include <cassert>
 
 using namespace std;
+using namespace std::experimental;
 
 #define let auto /* Pure provocation with respect to my dire love to F# & my hate to C++ auto keyword. */
 
@@ -42,7 +46,7 @@ namespace sgfx {
 canvas load_ppm(const std::string& _path)
 {
     filesystem::path path{_path};
-    let fileSize = std::filesystem::file_size(path);
+    let fileSize = filesystem::file_size(path);
 
     let data = string{};
     data.resize(fileSize);
@@ -53,9 +57,11 @@ canvas load_ppm(const std::string& _path)
 
     ifs.read(data.data(), fileSize);
     if (static_cast<size_t>(ifs.tellg()) < static_cast<size_t>(fileSize))
-        throw runtime_error{(ostringstream{} << "Expected to read " << fileSize << " bytes but only read "
-                                             << ifs.tellg() << " bytes.")
-                                .str()};
+	{
+        auto msg = ostringstream{};
+		msg << "Expected to read " << fileSize << " bytes but only read " << ifs.tellg() << " bytes.";
+        throw runtime_error{msg.str()};
+	}
 
     return ppm::Parser{}.parseString(data);
 }
@@ -151,8 +157,8 @@ void save_rle(const rle_image& image, const std::string& filename)
 {
     ofstream os{filename, ios::binary};
 
-    write<uint16_t>(os, image.dimension().width);
-    write<uint16_t>(os, image.dimension().height);
+    write<uint16_t>(os, image.dim().width);
+    write<uint16_t>(os, image.dim().height);
 
     for (rle_image::Row const& row : image.rows())
     {
@@ -197,7 +203,7 @@ rle_image rle_encode(widget& image)
 
 void draw(widget& target, const rle_image& source, point top_left)
 {
-    for (int x = 0, y = 0; y < source.dimension().height; x = 0, ++y)
+    for (int x = 0, y = 0; y < source.dim().height; x = 0, ++y)
         for (rle_image::Run const& run : source.row(y))
             for (unsigned i = 0; i < run.length; ++i, ++x)
                 target[top_left + point{x, y}] = run.color;
@@ -205,7 +211,7 @@ void draw(widget& target, const rle_image& source, point top_left)
 
 void draw(widget& target, const rle_image& source, point top_left, color::rgb_color colorkey)
 {
-    for (int x = 0, y = 0; y < source.dimension().height; x = 0, ++y)
+    for (int x = 0, y = 0; y < source.dim().height; x = 0, ++y)
         for (rle_image::Run const& run : source.row(y))
             for (unsigned i = 0; i < run.length; ++i, ++x)
                 if (run.color != colorkey)
