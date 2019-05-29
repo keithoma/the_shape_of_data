@@ -42,7 +42,7 @@ using namespace std;
 
 static unsigned getTerminalWidth(int terminalFd)
 {
-#ifdef TIOCGSIZE
+#if defined(TIOCGSIZE)
     struct ttysize ts;
     ioctl(STDIN_FILENO, TIOCGSIZE, &ts);
     return ts.ts_cols;

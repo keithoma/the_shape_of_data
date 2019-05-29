@@ -25,7 +25,12 @@ add_library(sgfx STATIC
 )
 set_target_properties(sgfx PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 target_include_directories(sgfx PUBLIC include)
-target_link_libraries(sgfx glfw GLEW::GLEW OpenGL::GL)
+
+set(libs glfw GLEW::GLEW OpenGL::GL)
+if (NOT MSVC)
+	set(libs ${libs} stdc++fs)
+endif()
+target_link_libraries(sgfx ${libs})
 
 install(TARGETS sgfx DESTINATION lib)
 install(DIRECTORY include/sgfx DESTINATION include)

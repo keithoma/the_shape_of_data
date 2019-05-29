@@ -186,8 +186,6 @@ void RLEDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 
     if (last)
     {
-        using Run = sgfx::rle_image::Run;
-
         auto in = stringstream{cache_};
         auto out = back_inserter(output);
 
