@@ -27,7 +27,7 @@ using Buffer = std::vector<uint8_t>;
  * @param last indicator whether or not this is the last data chunk in the
  *             stream.
  */
-using Filter = std::function<void(Buffer const& /*input*/, Buffer* /*output*/, bool /*last*/)>;
+using Filter = std::function<void(Buffer const& /*input*/, Buffer& /*output*/, bool /*last*/)>;
 
 /**
   * Applies a set of filters to @p input and stores result in @p output.
@@ -35,15 +35,19 @@ using Filter = std::function<void(Buffer const& /*input*/, Buffer* /*output*/, b
   * @param filters list of filters to apply in order
   * @param input input buffer to pass to first filter
   * @param output resulting output buffer to store the output of the last filter
+  *
+  * @returns reference to output buffer
+  *
+  * @note Any previous data in output will be lost.
   */
-void apply(const std::list<Filter>& filters, const Buffer& input, Buffer* output, bool last);
+Buffer& apply(const std::list<Filter>& filters, const Buffer& input, Buffer& output, bool last);
 
 /**
  * Decodes a single PPM image file stream chunk-wise.
  */
 class PPMDecoder {
   public:
-    void operator()(const Buffer& input, Buffer* output, bool last);
+    void operator()(const Buffer& input, Buffer& output, bool last);
 
   private:
     std::string cache_;
@@ -51,7 +55,7 @@ class PPMDecoder {
 
 class PPMEncoder {
   public:
-    void operator()(Buffer const& input, Buffer* output, bool last);
+    void operator()(Buffer const& input, Buffer& output, bool last);
 
   private:
     void write(Buffer& output, char const* text);
@@ -74,7 +78,7 @@ enum class RLEState {
 
 class RLEDecoder {
   public:
-    void operator()(const Buffer& input, Buffer* output, bool last);
+    void operator()(const Buffer& input, Buffer& output, bool last);
 
   private:
     std::string cache_;
@@ -82,7 +86,7 @@ class RLEDecoder {
 
 class RLEEncoder {
   public:
-    void operator()(const Buffer& input, Buffer* output, bool last);
+    void operator()(const Buffer& input, Buffer& output, bool last);
 
   private:
     Buffer cache_{};
@@ -97,7 +101,7 @@ class HuffmanEncoder {
   public:
     explicit HuffmanEncoder(bool debug) : debug_{debug} {}
 
-    void operator()(const Buffer& input, Buffer* output, bool last);
+    void operator()(const Buffer& input, Buffer& output, bool last);
 
 	static void encode(Buffer const& input, Buffer& output, bool debug);
 
@@ -109,7 +113,7 @@ class HuffmanEncoder {
 
 class HuffmanDecoder : public Filter {
   public:
-    void operator()(const Buffer& input, Buffer* output, bool last);
+    void operator()(const Buffer& input, Buffer& output, bool last);
 	// TODO
 };
 

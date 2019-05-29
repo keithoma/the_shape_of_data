@@ -30,7 +30,7 @@
 
 using namespace std;
 
-unsigned getTerminalWidth(int terminalFd)
+static unsigned getTerminalWidth(int terminalFd)
 {
 #ifdef TIOCGSIZE
     struct ttysize ts;
@@ -46,23 +46,7 @@ unsigned getTerminalWidth(int terminalFd)
 #endif
 }
 
-unique_ptr<pipeline::Source> createSource(string const& filename)
-{
-    if (auto f = make_unique<ifstream>(filename, ios::binary); f->is_open())
-        return make_unique<pipeline::RawSource>(move(f));
-    else
-        throw std::runtime_error("Could not open file for reading.");
-}
-
-unique_ptr<pipeline::Sink> createSink(string const& filename)
-{
-    if (auto f = make_unique<ofstream>(filename, ios::binary | ios::trunc); f->is_open())
-        return make_unique<pipeline::RawSink>(move(f));
-    else
-        throw std::runtime_error("Could not open file for writing.");
-}
-
-list<pipeline::Filter> populateFilters(string const& input, string const& output, bool debug)
+static list<pipeline::Filter> populateFilters(string const& input, string const& output, bool debug)
 {
     list<pipeline::Filter> filters;
 
@@ -94,11 +78,33 @@ list<pipeline::Filter> populateFilters(string const& input, string const& output
     else
         throw std::runtime_error{"Invalid output format specified: " + input};
 
-	if (input == output)
-		// we intentionally populate/destruct so we also have know that file formats were valid.
+    if (input == output)
+        // we intentionally populate/destruct so we also have know that file formats were valid.
         filters.clear();
 
     return filters;
+}
+
+static void write(ostream& sink, pipeline::Buffer const& source)
+{
+    sink.write(reinterpret_cast<char const*>(source.data()), source.size());
+}
+
+static pipeline::Buffer& read(istream& source, pipeline::Buffer& target)
+{
+    auto const start = target.size();
+    auto const count = static_cast<size_t>(target.capacity() - target.size());
+
+    // There seems to be an optimization that the reserve() call's underlying malloc
+    // is deferred, so we have to force it here.
+    target.resize(start + count);
+
+    source.read(reinterpret_cast<char*>(target.data() + start), count);
+    auto const nread = source.gcount();
+
+    target.resize(start + nread);
+
+    return target;
 }
 
 int main(int argc, const char* argv[])
@@ -142,8 +148,10 @@ int main(int argc, const char* argv[])
         auto const outputFormat = cli.getString("output-format");
         auto const debug = cli.getBool("debug");
 
-        auto source = createSource(inputFile);
-        auto sink = createSink(outputFile);
+        auto source = ifstream{inputFile};
+        if (!source.is_open())
+            throw std::runtime_error("Could not open file.");
+        auto sink = ofstream{outputFile, ios::binary | ios::trunc};
 
         auto filters = populateFilters(inputFormat, outputFormat, debug);
         auto input = pipeline::Buffer{};
@@ -151,17 +159,11 @@ int main(int argc, const char* argv[])
 
         input.reserve(4096);  // page-size
 
-        while (source->read(input))
-        {
-            pipeline::apply(filters, input, &output, false);
-            sink->write(output.data(), output.size());
-            input.clear();
-            // TODO: make this loop body a one-liner (refactor APIs)
-        }
+        for (; !read(source, input).empty(); input.clear())
+            write(sink, pipeline::apply(filters, input, output, false));
 
         // mark end in filter pipeline, in case some filter eventually still has to flush something.
-        pipeline::apply(filters, {}, &output, true);
-        sink->write(output.data(), output.size());
+        write(sink, pipeline::apply(filters, {}, output, true));
     }
 
     return EXIT_SUCCESS;

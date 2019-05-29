@@ -65,33 +65,36 @@ void write(pipeline::Buffer& os, T const& value)
 // -------------------------------------------------------------------------
 // Filter API
 
-void apply(list<Filter> const& filters, Buffer const& input, Buffer* output, bool last)
+Buffer& apply(list<Filter> const& filters, Buffer const& input, Buffer& output, bool last)
 {
     auto i = filters.begin();
     auto e = filters.end();
 
     if (i == e)
+        output = input;  // too bad we didn't decide for non-const input, then we could swap() here, too.
+    else
     {
-        *output = input;
-        return;
-    }
+        output.clear();
 
-    (*i)(input, output, last);
-    i++;
-
-    Buffer backBuffer;
-    while (i != e)
-    {
-        backBuffer.swap(*output);
-        (*i)(backBuffer, output, last);
+        (*i)(input, output, last);
         i++;
+
+        Buffer backBuffer;
+        while (i != e)
+        {
+            backBuffer.swap(output);
+            (*i)(backBuffer, output, last);
+            i++;
+        }
     }
+
+    return output;
 }
 
 // -------------------------------------------------------------------------
 // PPM Encoder & Decoder
 
-void PPMDecoder::operator()(Buffer const& input, Buffer* output, bool last)
+void PPMDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
     ranges::copy(input, back_inserter(cache_));
 
@@ -100,7 +103,7 @@ void PPMDecoder::operator()(Buffer const& input, Buffer* output, bool last)
         ranges::copy(input, back_inserter(cache_));
         sgfx::canvas const canvas = sgfx::ppm::Parser{}.parseString(cache_);
 
-        auto out = back_inserter(*output);
+        auto out = back_inserter(output);
 
         // encode 16-bit width
         *out++ = canvas.width() & 0xFF;
@@ -137,7 +140,7 @@ void PPMEncoder::write(Buffer& output, char ch)
     output.push_back(ch);
 }
 
-void PPMEncoder::operator()(Buffer const& input, Buffer* output, bool last)
+void PPMEncoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
     ranges::copy(input, back_inserter(cache_));
 
@@ -148,18 +151,18 @@ void PPMEncoder::operator()(Buffer const& input, Buffer* output, bool last)
         unsigned const width = input[0] | (input[1] << 8);
         unsigned const height = input[2] | (input[3] << 8);
 
-        write(*output, "P3\n");
-        write(*output, width);
-        write(*output, ' ');
-        write(*output, height);
-        write(*output, '\n');
-        write(*output, "255\n");  // largest value
+        write(output, "P3\n");
+        write(output, width);
+        write(output, ' ');
+        write(output, height);
+        write(output, '\n');
+        write(output, "255\n");  // largest value
 
         for (size_t i = 4; i + 2 < input.size(); i += 3)
         {
             char buf[128];
             snprintf(buf, sizeof(buf), "%u %u %u\n", input[i + 0], input[i + 1], input[i + 2]);
-            write(*output, buf);
+            write(output, buf);
         }
     }
 }
@@ -167,7 +170,7 @@ void PPMEncoder::operator()(Buffer const& input, Buffer* output, bool last)
 // -------------------------------------------------------------------------
 // RLE Encoder & Decoder
 
-void RLEDecoder::operator()(Buffer const& input, Buffer* output, bool last)
+void RLEDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
     ranges::copy(input, back_inserter(cache_));
 
@@ -176,7 +179,7 @@ void RLEDecoder::operator()(Buffer const& input, Buffer* output, bool last)
         using Run = sgfx::rle_image::Run;
 
         auto in = stringstream{cache_};
-        auto out = back_inserter(*output);
+        auto out = back_inserter(output);
 
         auto const width = read<uint16_t>(in);
         *out++ = width & 0xFF;
@@ -208,7 +211,7 @@ void RLEDecoder::operator()(Buffer const& input, Buffer* output, bool last)
     }
 }
 
-void RLEEncoder::operator()(Buffer const& input, Buffer* output, bool last)
+void RLEEncoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
     for (size_t i = 0; i < input.size(); ++i)
     {
@@ -216,22 +219,22 @@ void RLEEncoder::operator()(Buffer const& input, Buffer* output, bool last)
         {
             case RLEState::Width1:
                 width_ |= input[i] & 0xFF;
-                output->push_back(input[i]);
+                output.push_back(input[i]);
                 state_ = RLEState::Width2;
                 break;
             case RLEState::Width2:
                 width_ |= (input[i] << 8) & 0xFF00;
-                output->push_back(input[i]);
+                output.push_back(input[i]);
                 state_ = RLEState::Height1;
                 break;
             case RLEState::Height1:
                 height_ |= input[i] & 0xFF;
-                output->push_back(input[i]);
+                output.push_back(input[i]);
                 state_ = RLEState::Height2;
                 break;
             case RLEState::Height2:
                 height_ |= (input[i] << 8) & 0xFF00;
-                output->push_back(input[i]);
+                output.push_back(input[i]);
                 state_ = RLEState::PixelRed;
                 break;
             case RLEState::PixelRed:
@@ -247,7 +250,7 @@ void RLEEncoder::operator()(Buffer const& input, Buffer* output, bool last)
                 ++currentColumn_;
                 if (currentColumn_ == width_)
                 {
-                    sgfx::rle_image::encodeLine(cache_, *output);
+                    sgfx::rle_image::encodeLine(cache_, output);
                     currentColumn_ = 0;
                     currentLine_++;
                     cache_.clear();
@@ -261,17 +264,17 @@ void RLEEncoder::operator()(Buffer const& input, Buffer* output, bool last)
     }
 }
 
-void HuffmanDecoder::operator()(Buffer const& input, Buffer* output, bool last)
+void HuffmanDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
     // TODO
 }
 
-void HuffmanEncoder::operator()(Buffer const& input, Buffer* output, bool last)
+void HuffmanEncoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
     ranges::copy(input, back_inserter(cache_));
 
     if (last)
-        encode(cache_, *output, debug_);
+        encode(cache_, output, debug_);
 }
 
 void HuffmanEncoder::encode(Buffer const& input, Buffer& output, bool debug)
@@ -290,21 +293,21 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, bool debug)
     };
 
     auto const static flushLastBits = [](vector<bool> const& writeCache) -> Buffer {
-        return {};  // TODO
+        return huffman::to_bytes(writeCache);
     };
 
     auto const root = huffman::encode(input);
     if (debug)
-        cerr << huffman::to_dot(root) << endl;
+		clog << huffman::to_dot(root) << endl;
 
-	huffman::CodeTable const codeTable = huffman::encode(root);
+    huffman::CodeTable const codeTable = huffman::encode(root);
 
     write<uint64_t>(output, input.size());
 
-    for (uint8_t code = 0; code < 256; ++code)
+    for (size_t code = 0; code < 256; ++code)
     {
         auto const& bits = codeTable[code];
-        auto bytes = huffman::to_bytes(bits);
+        auto const bytes = huffman::to_bytes(bits);
         write<uint16_t>(output, static_cast<uint16_t>(bits.size()));
         for (auto const b : bytes)
             write<uint8_t>(output, b);
@@ -316,43 +319,6 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, bool debug)
             output.insert(end(output), begin(*frame), end(*frame));
     auto const lastFrame = flushLastBits(writeCache);
     output.insert(end(output), begin(lastFrame), end(lastFrame));
-}
-
-// -------------------------------------------------------------------------
-// TODO: eliminate abstraction, istreoam/ostream is sufficient
-
-RawSource::RawSource(std::unique_ptr<istream> owned) : owned_{move(owned)}, source_{*owned_}
-{
-    if (!source_.good())
-        throw std::runtime_error("Could not open stream.");
-}
-
-RawSource::RawSource(std::istream& source) : owned_{}, source_{source}
-{
-    if (!source_.good())
-        throw std::runtime_error("Could not open file.");
-}
-
-size_t RawSource::read(Buffer& target)
-{
-    auto const start = target.size();
-    auto const count = static_cast<size_t>(target.capacity() - target.size());
-
-    // There seems to be an optimization that the reserve() call's underlying malloc
-    // is deferred, so we have to force it here.
-    target.resize(start + count);
-
-    source_.read(reinterpret_cast<char*>(target.data() + start), count);
-    auto const nread = source_.gcount();
-
-    target.resize(start + nread);
-
-    return nread;
-}
-
-void RawSink::write(uint8_t const* data, size_t count)
-{
-    target_.write(reinterpret_cast<char const*>(data), count);
 }
 
 }  // namespace pipeline
