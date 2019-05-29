@@ -22,9 +22,9 @@ namespace {
 template <typename T>
 T read(std::istream& source)
 {
-	T value;
-	source.read((char*) &value, sizeof(value));
-	return value;
+    T value;
+    source.read((char*) &value, sizeof(value));
+    return value;
 }
 
 template <typename T>
@@ -74,13 +74,32 @@ void save_ppm(widget const& image, const std::string& filename)
     for_each(cbegin(image.pixels()), cend(image.pixels()), pixelWriter);
 }
 
+void rle_image::encodeLine(std::vector<uint8_t> const& input, std::vector<uint8_t>& output)
+{
+}
+
+std::vector<rle_image::Run> rle_image::decodeLine(uint8_t const* line, size_t width)
+{
+    let runs = vector<Run>(line[0] | (line[1] << 8));
+    line += 2;
+
+    for (unsigned i = 0; i < runs.size(); ++i)
+    {
+        let const length = *line++;
+        let const red = *line++;
+        let const green = *line++;
+        let const blue = *line++;
+        runs[i] = Run{length, color::rgb_color{red, green, blue}};
+    }
+
+    return runs;
+}
+
 rle_image load_rle(const std::string& filename)
 {
     let in = ifstream{filename, ios::binary};
     if (!in.is_open())
         throw std::runtime_error{"Could not open file."};
-
-
 
     let const width = read<uint16_t>(in);
     let const height = read<uint16_t>(in);
@@ -99,6 +118,7 @@ rle_image load_rle(const std::string& filename)
             runs[i] = rle_image::Run{length, color::rgb_color{red, green, blue}};
         }
         lines.emplace_back(move(runs));
+        // TODO: lines.emplace_back(rle_image::decodeLine(line, width));
     }
 
     return rle_image{dimension{width, height}, move(lines)};
@@ -126,7 +146,7 @@ void save_rle(const rle_image& image, const std::string& filename)
 
 rle_image rle_encode(widget& image)
 {
-	using Run = rle_image::Run;
+    using Run = rle_image::Run;
 
     // reads one run, i.e. one color and all up to 255 following colors that match that first color.
     auto readOne = [&image](int x, int y) -> Run {
@@ -138,16 +158,16 @@ rle_image rle_encode(widget& image)
         return {length, color};
     };
 
-	vector<rle_image::Row> rows;
+    vector<rle_image::Row> rows;
     rows.reserve(image.height());
 
     for (int x = 0, y = 0; y < image.height(); x = 0, ++y)
         rows.emplace_back([&]() {
-			rle_image::Row row;
-			for (auto run = readOne(x, y); run.length > 0; run = readOne(x, y), x += row.back().length)
-				row.emplace_back(move(run));
-			return row;
-		}());
+            rle_image::Row row;
+            for (auto run = readOne(x, y); run.length > 0; run = readOne(x, y), x += row.back().length)
+                row.emplace_back(move(run));
+            return row;
+        }());
 
     return rle_image{dimension{image.width(), image.height()}, move(rows)};
 }
