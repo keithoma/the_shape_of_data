@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include <cstddef>
@@ -16,6 +17,11 @@ using Buffer = std::vector<uint8_t>;
 
 // -----------------------------------------------------------------------------
 // Filter API
+
+struct Chunk {
+    Buffer buffer;
+    std::optional<std::pair<unsigned, unsigned>> widthAndHeight;
+};
 
 class Filter {
   public:
@@ -31,48 +37,76 @@ class Filter {
      */
     virtual void filter(const Buffer& input, Buffer* output, bool last) = 0;
 
-	/// Retrieves {with, height} if available.
+    /// Retrieves {with, height} if available.
     virtual std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const { return std::nullopt; }
 
-	/// Applies a set of filters to @p input and stores result in @p output.
+    /// Applies a set of filters to @p input and stores result in @p output.
     static void applyFilters(const std::list<std::unique_ptr<Filter>>& filters, const Buffer& input,
                              Buffer* output, bool last);
 };
 
+/**
+ * Decodes a single PPM image file stream chunk-wise.
+ */
 class PPMDecoder : public Filter {
   public:
     void filter(const Buffer& input, Buffer* output, bool last) override;
-    std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const override;
+
+  private:
+    std::string cache_;
 };
 
 class PPMEncoder : public Filter {
   public:
-    void filter(const Buffer& input, Buffer* output, bool last) override;
-    std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const override;
+    void filter(Buffer const& input, Buffer* output, bool last) override;
+
+	static std::string encode(Buffer const& input); 
+
+  private:
+    Buffer cache_;
+};
+
+enum class RLEState {
+	Width1,
+	Width2,
+	Height1,
+	Height2,
+	PixelRed,
+	PixelGreen,
+	PixelBlue,
 };
 
 class RLEDecoder : public Filter {
   public:
     void filter(const Buffer& input, Buffer* output, bool last) override;
-    std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const override;
+
+  private:
+    RLEState state_ = RLEState::Width1; // TODO: make use of it (performance increase)!
+
+    std::string cache_;
 };
 
 class RLEEncoder : public Filter {
   public:
     void filter(const Buffer& input, Buffer* output, bool last) override;
-    std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const override;
+
+  private:
+	RLEState state_ = RLEState::Width1;
+    Buffer cache_{};
+    unsigned width_ = 0;
+    unsigned height_ = 0;
+    unsigned currentLine_ = 0;
+    unsigned currentColumn_ = 0;
 };
 
 class HuffmanEncoder : public Filter {
   public:
     void filter(const Buffer& input, Buffer* output, bool last) override;
-    std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const override;
 };
 
 class HuffmanDecoder : public Filter {
   public:
     void filter(const Buffer& input, Buffer* output, bool last) override;
-    std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const override;
 };
 
 // -----------------------------------------------------------------------------
@@ -141,7 +175,7 @@ class Sink {
 /// Writes data as-is into the target stream.
 class RawSink : public Sink {
   public:
-    explicit RawSink(std::unique_ptr<std::ostream> owned) : owned_{move(owned)}, target_{*owned} {}
+    explicit RawSink(std::unique_ptr<std::ostream> owned) : owned_{move(owned)}, target_{*owned_} {}
     explicit RawSink(std::ostream& target) : owned_{}, target_{target} {}
 
     void write(uint8_t const* data, size_t count) override;

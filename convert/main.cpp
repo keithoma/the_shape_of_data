@@ -14,7 +14,7 @@
 #include <string>
 #include <system_error>
 
-#include <direct.h> // WINDOWS
+#include <direct.h>  // WINDOWS
 
 #if defined(HAVE_IOCTL_H)
 #    include <ioctl.h>
@@ -45,20 +45,45 @@ unsigned getTerminalWidth(int terminalFd)
 #endif
 }
 
-unique_ptr<pipeline::Source> createSource(string const& format, string const& filename)
+unique_ptr<pipeline::Source> createSource(string const& filename)
 {
-    if (format == "raw")
-        return make_unique<pipeline::RawSource>(make_unique<ifstream>(filename));
-
-    return nullptr;
+    if (auto f = make_unique<ifstream>(filename, ios::binary); f->is_open())
+        return make_unique<pipeline::RawSource>(move(f));
+    else
+        throw std::runtime_error("Could not open file for reading.");
 }
 
-unique_ptr<pipeline::Sink> createSink(string const& format, string const& filename)
+unique_ptr<pipeline::Sink> createSink(string const& filename)
 {
-    if (format == "raw")
-        return make_unique<pipeline::RawSink>(make_unique<ofstream>(filename));
+    if (auto f = make_unique<ofstream>(filename, ios::binary | ios::trunc); f->is_open())
+        return make_unique<pipeline::RawSink>(move(f));
+    else
+        throw std::runtime_error("Could not open file for writing.");
+}
 
-    return nullptr;
+list<unique_ptr<pipeline::Filter>> populateFilters(string const& input, string const& output)
+{
+    list<unique_ptr<pipeline::Filter>> filters;
+
+    if (input == "ppm")
+        filters.emplace_back(make_unique<pipeline::PPMDecoder>());
+    else if (input == "rle")
+        filters.emplace_back(make_unique<pipeline::RLEDecoder>());
+    else if (input == "huffman")
+        ;  // TODO
+    else
+        ;  // TODO
+
+	if (output == "ppm")
+        filters.emplace_back(make_unique<pipeline::PPMEncoder>());
+    else if (output == "rle")
+        ;  // TODO
+    else if (output == "huffman")
+        ;  // TODO
+    else
+        ;  // TODO
+
+	return filters;
 }
 
 int main(int argc, const char* argv[])
@@ -66,7 +91,8 @@ int main(int argc, const char* argv[])
     flags::Flags cli;
     cli.defineString("input-format", 'I', "FORMAT", "Specifies which format the input stream has.", "raw");
     cli.defineString("input-file", 'i', "PATH", "Specifies the path to the input file to read from.");
-    cli.defineString("output-format", 'O', "FORMAT", "Specifies which format the output stream will be.", "raw");
+    cli.defineString("output-format", 'O', "FORMAT", "Specifies which format the output stream will be.",
+                     "raw");
     cli.defineString("output-file", 'o', "PATH", "Specifies the path to the output file to write to.");
     cli.defineBool("help", 'h', "Shows this help.");
 
@@ -85,37 +111,31 @@ int main(int argc, const char* argv[])
     }
     else
     {
-        char cwd[1024];
-        _getcwd(cwd, sizeof(cwd));
-        cout << "cwd: " << cwd << "\n";
-
         auto const inputFile = cli.getString("input-file");
         auto const inputFormat = cli.getString("input-format");
         auto const outputFile = cli.getString("output-file");
         auto const outputFormat = cli.getString("output-format");
 
-        auto source = createSource(inputFormat, inputFile);
-        auto sink = createSink(outputFormat, outputFile);
+        auto source = createSource(inputFile);
+        auto sink = createSink(outputFile);
 
-        auto buffer = pipeline::Buffer{};
-        buffer.reserve(128);
+        auto filters = populateFilters(inputFormat, outputFormat);
+        auto input = pipeline::Buffer{};
+        auto output = pipeline::Buffer{};
 
-        while (source->read(buffer))
+        input.reserve(4096);  // page-size
+
+        while (source->read(input))
         {
-			sink->write(buffer.data(), buffer.size());
-            buffer.clear();
+            pipeline::Filter::applyFilters(filters, input, &output, false);
+            sink->write(output.data(), output.size());
+            input.clear();
+            // TODO: make this loop body a one-liner (refactor APIs)
         }
 
-        // ---
-#if 0
-        huffman::Node const root = huffman::encode("aaaabcadaaabbaaaacaabaadc");
-
-        cout << to_string(root) << "\n\n";
-        cout << huffman::to_dot(root) << "\n\n";
-
-        huffman::CodeTable const codes = huffman::encode(root);
-        cout << huffman::to_string(codes) << "\n";
-#endif
+        // mark end in filter pipeline, in case some filter eventually still has to flush something.
+        pipeline::Filter::applyFilters(filters, {}, &output, true);
+        sink->write(output.data(), output.size());
     }
 
     return EXIT_SUCCESS;
