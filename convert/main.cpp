@@ -41,7 +41,8 @@ unsigned getTerminalWidth(int terminalFd)
     ioctl(STDIN_FILENO, TIOCGWINSZ, &ts);
     return ts.ws_col;
 #else
-    return 110;  // default (I intentionally did not chose 80 here), as it's aged.
+	// default (I intentionally did not chose 80 here), as it's aged.
+    return 110;
 #endif
 }
 
@@ -61,21 +62,21 @@ unique_ptr<pipeline::Sink> createSink(string const& filename)
         throw std::runtime_error("Could not open file for writing.");
 }
 
-list<unique_ptr<pipeline::Filter>> populateFilters(string const& input, string const& output)
+list<pipeline::Filter> populateFilters(string const& input, string const& output)
 {
-    list<unique_ptr<pipeline::Filter>> filters;
+    list<pipeline::Filter> filters;
 
     if (input == "ppm")
-        filters.emplace_back(make_unique<pipeline::PPMDecoder>());
+        filters.emplace_back(pipeline::PPMDecoder{});
     else if (input == "rle")
-        filters.emplace_back(make_unique<pipeline::RLEDecoder>());
+        filters.emplace_back(pipeline::RLEDecoder{});
     else if (input == "huffman")
         ;  // TODO
     else
         ;  // TODO
 
 	if (output == "ppm")
-        filters.emplace_back(make_unique<pipeline::PPMEncoder>());
+        filters.emplace_back(pipeline::PPMEncoder{});
     else if (output == "rle")
         ;  // TODO
     else if (output == "huffman")
@@ -103,10 +104,19 @@ int main(int argc, const char* argv[])
     }
     else if (cli.getBool("help"))
     {
-        string const static header =
+        string_view constexpr static header =
             "convert - command line tool for converting some file formats.\n"
             "Copyright (c) 2019 by Christian Parpart and Kei Thoma.\n\n";
-        cout << cli.helpText(header, getTerminalWidth(STDOUT_FILENO), 32);
+
+        string_view constexpr static footer =
+            "Supported file formats are:\n"
+            "\n"
+            " * raw: no encoding or decoding is happening\n"
+            " * ppm: PPM image file encoding/decoding\n"
+            " * rle: RLE image file encoding/decoding\n"
+            " * huffman: Huffman file encoding/decoding\n";
+
+        cout << cli.helpText(header, footer, getTerminalWidth(STDOUT_FILENO), 32);
         return EXIT_SUCCESS;
     }
     else
@@ -127,14 +137,14 @@ int main(int argc, const char* argv[])
 
         while (source->read(input))
         {
-            pipeline::Filter::applyFilters(filters, input, &output, false);
+            pipeline::apply(filters, input, &output, false);
             sink->write(output.data(), output.size());
             input.clear();
             // TODO: make this loop body a one-liner (refactor APIs)
         }
 
         // mark end in filter pipeline, in case some filter eventually still has to flush something.
-        pipeline::Filter::applyFilters(filters, {}, &output, true);
+        pipeline::apply(filters, {}, &output, true);
         sink->write(output.data(), output.size());
     }
 

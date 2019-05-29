@@ -32,4 +32,11 @@ Options:
                                 Specifies the path to the output file to write to.
   -h, --help
                                 Shows this help.
+
+Supported file formats are:
+
+ * raw: no encoding or decoding is happening
+ * ppm: PPM image file encoding/decoding
+ * rle: RLE image file encoding/decoding
+ * huffman: Huffman file encoding/decoding
 ```

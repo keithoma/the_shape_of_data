@@ -64,8 +64,7 @@ void write(pipeline::Buffer& os, T const& value)
 // -------------------------------------------------------------------------
 // Filter API
 
-void Filter::applyFilters(list<unique_ptr<Filter>> const& filters, Buffer const& input, Buffer* output,
-                          bool last)
+void apply(list<Filter> const& filters, Buffer const& input, Buffer* output, bool last)
 {
     auto i = filters.begin();
     auto e = filters.end();
@@ -76,13 +75,14 @@ void Filter::applyFilters(list<unique_ptr<Filter>> const& filters, Buffer const&
         return;
     }
 
-    (*i)->filter(input, output, last);
+    (*i)(input, output, last);
     i++;
-    Buffer tmp;
+
+    Buffer backBuffer;
     while (i != e)
     {
-        tmp.swap(*output);
-        (*i)->filter(tmp, output, last);
+        backBuffer.swap(*output);
+        (*i)(backBuffer, output, last);
         i++;
     }
 }
@@ -90,7 +90,7 @@ void Filter::applyFilters(list<unique_ptr<Filter>> const& filters, Buffer const&
 // -------------------------------------------------------------------------
 // PPM Encoder & Decoder
 
-void PPMDecoder::filter(Buffer const& input, Buffer* output, bool last)
+void PPMDecoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
     copy(begin(input), end(input), back_inserter(cache_));
 
@@ -136,7 +136,7 @@ static void write(Buffer& output, char ch)
     output.push_back(ch);
 }
 
-void PPMEncoder::filter(Buffer const& input, Buffer* output, bool last)
+void PPMEncoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
     copy(begin(input), end(input), back_inserter(cache_));
 
@@ -166,7 +166,7 @@ void PPMEncoder::filter(Buffer const& input, Buffer* output, bool last)
 // -------------------------------------------------------------------------
 // RLE Encoder & Decoder
 
-void RLEDecoder::filter(Buffer const& input, Buffer* output, bool last)
+void RLEDecoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
     copy(begin(input), end(input), back_inserter(cache_));
 
@@ -207,7 +207,7 @@ void RLEDecoder::filter(Buffer const& input, Buffer* output, bool last)
     }
 }
 
-void RLEEncoder::filter(Buffer const& input, Buffer* output, bool last)
+void RLEEncoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
     for (size_t i = 0; i < input.size(); ++i)
     {

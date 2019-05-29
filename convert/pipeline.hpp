@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <iosfwd>
 #include <list>
 #include <memory>
@@ -18,47 +19,39 @@ using Buffer = std::vector<uint8_t>;
 // -----------------------------------------------------------------------------
 // Filter API
 
-struct Chunk {
-    Buffer buffer;
-    std::optional<std::pair<unsigned, unsigned>> widthAndHeight;
-};
+/**
+ * Applies this filter to the given @p input.
+ *
+ * @param input the input data this filter to apply to.
+ * @param output the output to store the filtered data to.
+ * @param last indicator whether or not this is the last data chunk in the
+ *             stream.
+ */
+using Filter = std::function<void(Buffer const& /*input*/, Buffer* /*output*/, bool /*last*/)>;
 
-class Filter {
-  public:
-    virtual ~Filter() = default;
-
-    /**
-     * Applies this filter to the given @p input.
-     *
-     * @param input the input data this filter to apply to.
-     * @param output the output to store the filtered data to.
-     * @param last indicator whether or not this is the last data chunk in the
-     *             stream.
-     */
-    virtual void filter(const Buffer& input, Buffer* output, bool last) = 0;
-
-    /// Retrieves {with, height} if available.
-    virtual std::optional<std::pair<unsigned, unsigned>> widthAndHeight() const { return std::nullopt; }
-
-    /// Applies a set of filters to @p input and stores result in @p output.
-    static void applyFilters(const std::list<std::unique_ptr<Filter>>& filters, const Buffer& input,
-                             Buffer* output, bool last);
-};
+/**
+  * Applies a set of filters to @p input and stores result in @p output.
+  *
+  * @param filters list of filters to apply in order
+  * @param input input buffer to pass to first filter
+  * @param output resulting output buffer to store the output of the last filter
+  */
+void apply(const std::list<Filter>& filters, const Buffer& input, Buffer* output, bool last);
 
 /**
  * Decodes a single PPM image file stream chunk-wise.
  */
-class PPMDecoder : public Filter {
+class PPMDecoder {
   public:
-    void filter(const Buffer& input, Buffer* output, bool last) override;
+    void operator()(const Buffer& input, Buffer* output, bool last);
 
   private:
     std::string cache_;
 };
 
-class PPMEncoder : public Filter {
+class PPMEncoder {
   public:
-    void filter(Buffer const& input, Buffer* output, bool last) override;
+    void operator()(Buffer const& input, Buffer* output, bool last);
 
 	static std::string encode(Buffer const& input); 
 
@@ -76,9 +69,9 @@ enum class RLEState {
 	PixelBlue,
 };
 
-class RLEDecoder : public Filter {
+class RLEDecoder {
   public:
-    void filter(const Buffer& input, Buffer* output, bool last) override;
+    void operator()(const Buffer& input, Buffer* output, bool last);
 
   private:
     RLEState state_ = RLEState::Width1; // TODO: make use of it (performance increase)!
@@ -86,9 +79,9 @@ class RLEDecoder : public Filter {
     std::string cache_;
 };
 
-class RLEEncoder : public Filter {
+class RLEEncoder {
   public:
-    void filter(const Buffer& input, Buffer* output, bool last) override;
+    void operator()(const Buffer& input, Buffer* output, bool last);
 
   private:
 	RLEState state_ = RLEState::Width1;
@@ -99,14 +92,16 @@ class RLEEncoder : public Filter {
     unsigned currentColumn_ = 0;
 };
 
-class HuffmanEncoder : public Filter {
+class HuffmanEncoder {
   public:
-    void filter(const Buffer& input, Buffer* output, bool last) override;
+    void operator()(const Buffer& input, Buffer* output, bool last);
+	// TODO
 };
 
 class HuffmanDecoder : public Filter {
   public:
-    void filter(const Buffer& input, Buffer* output, bool last) override;
+    void operator()(const Buffer& input, Buffer* output, bool last);
+	// TODO
 };
 
 // -----------------------------------------------------------------------------
@@ -132,36 +127,6 @@ class RawSource : public Source {
     std::istream& source_;
 };
 
-// Reads from huffman encoded source, for retrieving decoded data.
-class HuffmanSource : public Source {
-  public:
-    std::size_t read(Buffer& target) override;
-};
-
-class ImageSource : public Source {
-  public:
-    virtual unsigned width() const noexcept = 0;
-    virtual unsigned height() const noexcept = 0;
-};
-
-class PPMSource : public ImageSource {
-  public:
-    PPMSource(std::istream& source) : source_{source} {}
-    unsigned width() const noexcept override;
-    unsigned height() const noexcept override;
-    std::size_t read(Buffer& target) override;
-
-  private:
-    std::istream& source_;
-};
-
-class RLESource : public ImageSource {
-  public:
-    unsigned width() const noexcept override;
-    unsigned height() const noexcept override;
-    std::size_t read(Buffer& target) override;
-};
-
 // -----------------------------------------------------------------------------
 // Sink API
 
@@ -182,24 +147,6 @@ class RawSink : public Sink {
 
   private:
     std::unique_ptr<std::ostream> owned_;
-    std::ostream& target_;
-};
-
-class PPMSink : public Sink {
-  public:
-    PPMSink(unsigned width, unsigned height, std::ostream& target);
-    void write(uint8_t const* data, size_t count) override;
-
-  private:
-    std::ostream& target_;
-};
-
-class RLESink : public Sink {
-  public:
-    RLESink(unsigned width, unsigned height, std::ostream& target);
-    void write(uint8_t const* data, size_t count) override;
-
-  private:
     std::ostream& target_;
 };
 
