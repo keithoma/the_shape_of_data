@@ -83,7 +83,7 @@ void save_ppm(widget const& image, const std::string& filename)
     for_each(cbegin(image.pixels()), cend(image.pixels()), pixelWriter);
 }
 
-void rle_image::encodeLine(std::vector<uint8_t> const& input, std::vector<uint8_t>& output)
+void rle_image::encodeLine(std::vector<byte> const& input, std::vector<byte>& output)
 {
     size_t i = 0;
     while (i + 2 < input.size())
@@ -92,7 +92,7 @@ void rle_image::encodeLine(std::vector<uint8_t> const& input, std::vector<uint8_
         auto const green = input[i++];
         auto const blue = input[i++];
 
-        auto count = uint8_t{1};
+        auto count = unsigned{1};
         while (i + 2 < input.size() && count < 255 && input[i] == red && input[i + 1] == green
                && input[i + 2] == blue)
         {
@@ -100,7 +100,7 @@ void rle_image::encodeLine(std::vector<uint8_t> const& input, std::vector<uint8_
             ++count;
         }
 
-        output.push_back(count);
+        output.push_back(static_cast<byte>(count));
         output.push_back(red);
         output.push_back(green);
         output.push_back(blue);

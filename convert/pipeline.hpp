@@ -24,7 +24,7 @@
 
 namespace pipeline {
 
-using Buffer = std::vector<uint8_t>;
+using Buffer = std::vector<std::byte>;
 
 // -----------------------------------------------------------------------------
 // Filter API
@@ -81,7 +81,7 @@ class RLEDecoder {
     void operator()(const Buffer& input, Buffer& output, bool last);
 
   private:
-    std::string cache_;
+    std::vector<std::byte> cache_;
 };
 
 class RLEEncoder {

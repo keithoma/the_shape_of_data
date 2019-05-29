@@ -47,27 +47,27 @@ void write(pipeline::Buffer& os, T const& value)
     static_assert(sizeof(T) <= 8);
 
     if constexpr (sizeof(T) >= 8)
-        os.push_back((value >> 56) & 0xFF);
+        os.push_back(static_cast<byte>(value >> 56));
 
     if constexpr (sizeof(T) >= 7)
-        os.push_back((value >> 48) & 0xFF);
+        os.push_back(static_cast<byte>(value >> 48));
 
     if constexpr (sizeof(T) >= 6)
-        os.push_back((value >> 40) & 0xFF);
+        os.push_back(static_cast<byte>(value >> 40));
 
     if constexpr (sizeof(T) >= 5)
-        os.push_back((value >> 32) & 0xFF);
+        os.push_back(static_cast<byte>(value >> 32));
 
     if constexpr (sizeof(T) >= 4)
-        os.push_back((value >> 24) & 0xFF);
+        os.push_back(static_cast<byte>(value >> 24));
 
     if constexpr (sizeof(T) >= 3)
-        os.push_back((value >> 16) & 0xFF);
+        os.push_back(static_cast<byte>(value >> 16));
 
     if constexpr (sizeof(T) >= 2)
-        os.push_back((value >> 8) & 0xFF);
+        os.push_back(static_cast<byte>(value >> 8));
 
-    os.push_back(value & 0xFF);
+    os.push_back(static_cast<byte>(value));
 }
 
 }  // namespace
@@ -106,28 +106,28 @@ Buffer& apply(list<Filter> const& filters, Buffer const& input, Buffer& output, 
 
 void PPMDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
-    ranges::copy(input, back_inserter(cache_));
+    ranges::transform(input, back_inserter(cache_), [](byte b) { return to_integer<char>(b); });
 
-    if (last)
+	if (last)
     {
-        ranges::copy(input, back_inserter(cache_));
+		ranges::transform(input, back_inserter(cache_), [](byte b) { return to_integer<char>(b); });
         sgfx::canvas const canvas = sgfx::ppm::Parser{}.parseString(cache_);
 
         auto out = back_inserter(output);
 
         // encode 16-bit width
-        *out++ = canvas.width() & 0xFF;
-        *out++ = (canvas.width() >> 8) & 0xFF;
+        *out++ = static_cast<byte>(canvas.width());
+        *out++ = static_cast<byte>(canvas.width() >> 8);
 
         // encode 16-bit height
-        *out++ = canvas.height() & 0xFF;
-        *out++ = (canvas.height() >> 8) & 0xFF;
+        *out++ = static_cast<byte>(canvas.height());
+        *out++ = static_cast<byte>(canvas.height() >> 8);
 
-        for (sgfx::color::rgb_color color : canvas.pixels())
+        for (sgfx::color::rgb_color const& color : canvas.pixels())
         {
-            *out++ = color.red();
-            *out++ = color.green();
-            *out++ = color.blue();
+            *out++ = static_cast<byte>(color.red());
+            *out++ = static_cast<byte>(color.green());
+            *out++ = static_cast<byte>(color.blue());
         }
     }
 }
@@ -135,7 +135,7 @@ void PPMDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 void PPMEncoder::write(Buffer& output, char const* text)
 {
     while (*text)
-        output.push_back(*text++);
+        output.push_back(static_cast<byte>(*text++));
 }
 
 void PPMEncoder::write(Buffer& output, unsigned value)
@@ -147,7 +147,7 @@ void PPMEncoder::write(Buffer& output, unsigned value)
 
 void PPMEncoder::write(Buffer& output, char ch)
 {
-    output.push_back(ch);
+    output.push_back(static_cast<byte>(ch));
 }
 
 void PPMEncoder::operator()(Buffer const& input, Buffer& output, bool last)
@@ -158,8 +158,8 @@ void PPMEncoder::operator()(Buffer const& input, Buffer& output, bool last)
     {
         auto const& input = cache_;
 
-        unsigned const width = input[0] | (input[1] << 8);
-        unsigned const height = input[2] | (input[3] << 8);
+        auto const width = unsigned(to_integer<unsigned>(input[0]) | (to_integer<unsigned>(input[1]) << 8));
+        auto const height = unsigned(to_integer<unsigned>(input[2]) | (to_integer<unsigned>(input[3]) << 8));
 
         write(output, "P3\n");
         write(output, width);
@@ -190,12 +190,12 @@ void RLEDecoder::operator()(Buffer const& input, Buffer& output, bool last)
         auto out = back_inserter(output);
 
         auto const width = read<uint16_t>(in);
-        *out++ = width & 0xFF;
-        *out++ = (width >> 8) & 0xFF;
+        *out++ = static_cast<byte>(width);
+        *out++ = static_cast<byte>(width >> 8);
 
         auto const height = read<uint16_t>(in);
-        *out++ = height & 0xFF;
-        *out++ = (height >> 8) & 0xFF;
+        *out++ = static_cast<byte>(height);
+        *out++ = static_cast<byte>(height >> 8);
 
         for (auto lineNo = 0; lineNo < height; ++lineNo)
         {
@@ -203,12 +203,12 @@ void RLEDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 
             for (auto i = 0; i < runsOnThisLine; ++i)
             {
-                auto const length = read<uint8_t>(in);
-                auto const red = read<uint8_t>(in);
-                auto const green = read<uint8_t>(in);
-                auto const blue = read<uint8_t>(in);
+                auto const length = to_integer<unsigned>(read<byte>(in));
+                auto const red = read<byte>(in);
+                auto const green = read<byte>(in);
+                auto const blue = read<byte>(in);
 
-                for (auto k = 0; k < length; ++k)
+                for (unsigned k = 0; k < length; ++k)
                 {
                     *out++ = red;
                     *out++ = green;
@@ -226,22 +226,22 @@ void RLEEncoder::operator()(Buffer const& input, Buffer& output, bool last)
         switch (state_)
         {
             case RLEState::Width1:
-                width_ |= input[i] & 0xFF;
+                width_ |= to_integer<unsigned>(input[i]);
                 output.push_back(input[i]);
                 state_ = RLEState::Width2;
                 break;
             case RLEState::Width2:
-                width_ |= (input[i] << 8) & 0xFF00;
+                width_ |= to_integer<unsigned>(input[i]) << 8;
                 output.push_back(input[i]);
                 state_ = RLEState::Height1;
                 break;
             case RLEState::Height1:
-                height_ |= input[i] & 0xFF;
+                height_ |= to_integer<unsigned>(input[i]);
                 output.push_back(input[i]);
                 state_ = RLEState::Height2;
                 break;
             case RLEState::Height2:
-                height_ |= (input[i] << 8) & 0xFF00;
+                height_ |= to_integer<unsigned>(input[i]) << 8;
                 output.push_back(input[i]);
                 state_ = RLEState::PixelRed;
                 break;
@@ -306,7 +306,7 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, bool debug)
 
     auto const root = huffman::encode(input);
     if (debug)
-		clog << huffman::to_dot(root) << endl;
+        clog << huffman::to_dot(root) << endl;
 
     huffman::CodeTable const codeTable = huffman::encode(root);
 
@@ -318,12 +318,12 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, bool debug)
         auto const bytes = huffman::to_bytes(bits);
         write<uint16_t>(output, static_cast<uint16_t>(bits.size()));
         for (auto const b : bytes)
-            write<uint8_t>(output, b);
+            write<byte>(output, b);
     }
 
     vector<bool> writeCache{};
-    for (auto const sym : input)
-        if (auto const frame = writeBits(codeTable[sym], writeCache); frame.has_value())
+    for (byte const sym : input)
+        if (auto const frame = writeBits(codeTable[to_integer<size_t>(sym)], writeCache); frame.has_value())
             output.insert(end(output), begin(*frame), end(*frame));
     auto const lastFrame = flushLastBits(writeCache);
     output.insert(end(output), begin(lastFrame), end(lastFrame));

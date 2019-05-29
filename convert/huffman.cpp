@@ -17,6 +17,7 @@
 #include <variant>
 #include <vector>
 
+#include <cstddef>
 #include <cassert>
 #include <cctype>
 
@@ -27,7 +28,7 @@ namespace huffman {
 string to_string(CodeTable const& codes)
 {
     stringstream os;
-    for (uint8_t i = 0; i < 256; ++i)
+    for (unsigned i = 0; i < 256; ++i)
     {
         if (i++)
             os << ", ";
@@ -45,41 +46,42 @@ string to_string(CodeTable const& codes)
     return os.str();
 }
 
-vector<uint8_t> to_bytes(BitVector const& bits, size_t count)
+vector<byte> to_bytes(BitVector const& bits, size_t count)
 {
     assert(count <= bits.size());
 
-    vector<uint8_t> out;
+    vector<byte> out;
 
     size_t i = 0;
     for (; i + 7 < count; i += 8)
-        out.push_back((bits[i + 0] << 7) | (bits[i + 1] << 6) | (bits[i + 2] << 5) | (bits[i + 3] << 4)
-                      | (bits[i + 4] << 3) | (bits[i + 5] << 2) | (bits[i + 6] << 1) | (bits[i + 7] << 0));
+        out.push_back(static_cast<byte>((bits[i + 0] << 7) | (bits[i + 1] << 6) | (bits[i + 2] << 5)
+                                        | (bits[i + 3] << 4) | (bits[i + 4] << 3) | (bits[i + 5] << 2)
+                                        | (bits[i + 6] << 1) | (bits[i + 7] << 0)));
 
     if (i < count)
     {
-        auto path = uint8_t{0};
+        auto path = byte{};
 
         if (i < bits.size())
-            path |= bits[i] << 7;
+            path |= static_cast<byte>(bits[i] << 7);
 
         if (++i < bits.size())
-            path |= bits[i] << 6;
+            path |= static_cast<byte>(bits[i] << 6);
 
         if (++i < bits.size())
-            path |= bits[i] << 5;
+            path |= static_cast<byte>(bits[i] << 5);
 
         if (++i < bits.size())
-            path |= bits[i] << 4;
+            path |= static_cast<byte>(bits[i] << 4);
 
         if (++i < bits.size())
-            path |= bits[i] << 3;
+            path |= static_cast<byte>(bits[i] << 3);
 
         if (++i < bits.size())
-            path |= bits[i] << 2;
+            path |= static_cast<byte>(bits[i] << 2);
 
         if (++i < bits.size())
-            path |= bits[i] << 1;
+            path |= static_cast<byte>(bits[i] << 1);
 
         // no `<< 0`, as this case was already covered in the while-loop
 
@@ -92,7 +94,7 @@ vector<uint8_t> to_bytes(BitVector const& bits, size_t count)
 void encode(Node const& root, CodeTable& result, BitVector state)
 {
     if (holds_alternative<Leaf>(root))
-        result[get<Leaf>(root).ch] = state;
+        result[to_integer<size_t>(get<Leaf>(root).ch)] = state;
     else
     {
         state.push_back(false);
@@ -116,10 +118,10 @@ string label(Node const& n)
     if (holds_alternative<Leaf>(n))
     {
         Leaf const& leaf = get<Leaf>(n);
-        if (isprint(leaf.ch) && leaf.ch != '"')
-            snprintf(buf, sizeof(buf), "%c(%u)", leaf.ch, leaf.frequency);
+        if (isprint(to_integer<unsigned>(leaf.ch)) && to_integer<unsigned>(leaf.ch) != '"')
+            snprintf(buf, sizeof(buf), "%c(%u)", to_integer<char>(leaf.ch), leaf.frequency);
         else
-            snprintf(buf, sizeof(buf), "0x%02x(%u)", leaf.ch, leaf.frequency);
+            snprintf(buf, sizeof(buf), "0x%02x(%u)", to_integer<unsigned>(leaf.ch), leaf.frequency);
     }
     else
     {
@@ -168,7 +170,7 @@ string to_string(Node const& node)
     if (holds_alternative<Leaf>(node))
     {
         auto const& leaf = get<Leaf>(node);
-        os << "{" << leaf.frequency << ": " << leaf.ch << "}";
+        os << "{" << leaf.frequency << ": " << to_integer<unsigned>(leaf.ch) << "}";
     }
     else
     {
@@ -178,7 +180,7 @@ string to_string(Node const& node)
     return os.str();
 }
 
-Node encode(vector<uint8_t> const& data)
+Node encode(vector<byte> const& data)
 {
 	struct NodeGreater {
 		bool operator()(Node const& a, Node const& b) const noexcept { return frequency(a) > frequency(b); }
@@ -188,8 +190,8 @@ Node encode(vector<uint8_t> const& data)
         return {};
 
     // collect frequencies
-    auto freqs = map<uint8_t, unsigned>{};
-    for_each(begin(data), end(data), [&](uint8_t c) { freqs[c]++; });
+    auto freqs = map<byte, unsigned>{};
+    for_each(begin(data), end(data), [&](byte c) { freqs[c]++; });
 
 	// feed queue
     priority_queue<Node, vector<Node>, NodeGreater> queue;

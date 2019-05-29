@@ -6,6 +6,7 @@
 #include <sgfx/primitive_types.hpp>
 #include <sgfx/primitives.hpp>
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -27,7 +28,7 @@ class rle_image {
     static rle_image load(std::string const& data);
 
     static std::vector<Run> decodeLine(uint8_t const* line, size_t width);
-    static void encodeLine(std::vector<uint8_t> const& input, std::vector<uint8_t>& output);
+    static void encodeLine(std::vector<std::byte> const& input, std::vector<std::byte>& output);
 
     rle_image(dimension dim, std::vector<Row> rows) : dim_{dim}, rows_{move(rows)} {}
     rle_image() : rle_image{sgfx::dimension{0, 0}, {}} {}

@@ -20,9 +20,9 @@ inline auto min_element(Container& container, F f)
 }
 
 template <typename Container, typename OutputIterator>
-inline void copy(Container& input, OutputIterator output)
+inline void copy(Container const& input, OutputIterator output)
 {
-    std::copy(begin(input), end(input), output);
+    std::copy(cbegin(input), cend(input), output);
 }
 
 template <typename Container, typename F>
