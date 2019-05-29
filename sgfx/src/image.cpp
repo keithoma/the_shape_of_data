@@ -43,10 +43,11 @@ void write(std::ostream& os, T const& value)
 
 namespace sgfx {
 
+
 canvas load_ppm(const std::string& _path)
 {
-    filesystem::path path{_path};
-    let fileSize = filesystem::file_size(path);
+    experimental::filesystem::path path{_path};
+    let fileSize = experimental::filesystem::file_size(path);
 
     let data = string{};
     data.resize(fileSize);
