@@ -40,16 +40,16 @@ using Buffer = std::vector<uint8_t>;
 using Filter = std::function<void(Buffer const& /*input*/, Buffer& /*output*/, bool /*last*/)>;
 
 /**
-  * Applies a set of filters to @p input and stores result in @p output.
-  *
-  * @param filters list of filters to apply in order
-  * @param input input buffer to pass to first filter
-  * @param output resulting output buffer to store the output of the last filter
-  *
-  * @returns reference to output buffer
-  *
-  * @note Any previous data in output will be lost.
-  */
+ * Applies a set of filters to @p input and stores result in @p output.
+ *
+ * @param filters list of filters to apply in order
+ * @param input input buffer to pass to first filter
+ * @param output resulting output buffer to store the output of the last filter
+ *
+ * @returns reference to output buffer
+ *
+ * @note Any previous data in output will be lost.
+ */
 Buffer& apply(const std::list<Filter>& filters, const Buffer& input, Buffer& output, bool last);
 
 /**
@@ -76,16 +76,6 @@ class PPMEncoder {
     Buffer cache_;
 };
 
-enum class RLEState {
-	Width1,
-	Width2,
-	Height1,
-	Height2,
-	PixelRed,
-	PixelGreen,
-	PixelBlue,
-};
-
 class RLEDecoder {
   public:
     void operator()(const Buffer& input, Buffer& output, bool last);
@@ -99,8 +89,18 @@ class RLEEncoder {
     void operator()(const Buffer& input, Buffer& output, bool last);
 
   private:
+    enum class RLEState {
+        Width1,
+        Width2,
+        Height1,
+        Height2,
+        PixelRed,
+        PixelGreen,
+        PixelBlue,
+    };
+
     Buffer cache_{};
-	RLEState state_ = RLEState::Width1;
+    RLEState state_ = RLEState::Width1;
     unsigned width_ = 0;
     unsigned height_ = 0;
     unsigned currentLine_ = 0;
@@ -113,7 +113,7 @@ class HuffmanEncoder {
 
     void operator()(const Buffer& input, Buffer& output, bool last);
 
-	static void encode(Buffer const& input, Buffer& output, bool debug);
+    static void encode(Buffer const& input, Buffer& output, bool debug);
 
   private:
     bool debug_;
@@ -124,53 +124,7 @@ class HuffmanEncoder {
 class HuffmanDecoder : public Filter {
   public:
     void operator()(const Buffer& input, Buffer& output, bool last);
-	// TODO
-};
-
-// -----------------------------------------------------------------------------
-// Source API
-
-class Source {
-  public:
-    virtual ~Source() = default;
-
-    virtual std::size_t read(Buffer& target) = 0;
-};
-
-/// Reads from source without interpreting (identity).
-class RawSource : public Source {
-  public:
-    explicit RawSource(std::unique_ptr<std::istream> owned);
-    explicit RawSource(std::istream& source);
-
-    std::size_t read(Buffer& target) override;
-
-  private:
-    std::unique_ptr<std::istream> owned_;
-    std::istream& source_;
-};
-
-// -----------------------------------------------------------------------------
-// Sink API
-
-class Sink {
-  public:
-    virtual ~Sink() = default;
-
-    virtual void write(uint8_t const* data, size_t count) = 0;
-};
-
-/// Writes data as-is into the target stream.
-class RawSink : public Sink {
-  public:
-    explicit RawSink(std::unique_ptr<std::ostream> owned) : owned_{move(owned)}, target_{*owned_} {}
-    explicit RawSink(std::ostream& target) : owned_{}, target_{target} {}
-
-    void write(uint8_t const* data, size_t count) override;
-
-  private:
-    std::unique_ptr<std::ostream> owned_;
-    std::ostream& target_;
+    // TODO
 };
 
 }  // namespace pipeline
