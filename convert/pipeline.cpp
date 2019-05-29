@@ -271,52 +271,55 @@ void HuffmanEncoder::operator()(Buffer const& input, Buffer* output, bool last)
     ranges::copy(input, back_inserter(cache_));
 
     if (last)
+        encode(cache_, *output, debug_);
+}
+
+void HuffmanEncoder::encode(Buffer const& input, Buffer& output, bool debug)
+{
+    auto const static writeBits = [](vector<bool> const& bits, vector<bool>& writeCache) -> optional<Buffer> {
+        writeCache.insert(end(writeCache), begin(bits), end(bits));
+
+        size_t constexpr frameSize = 4096 * 8;
+
+        if (writeCache.size() < frameSize)
+            return nullopt;
+
+        auto out = huffman::to_bytes(writeCache, frameSize);
+        writeCache.erase(begin(writeCache), next(begin(writeCache), frameSize));
+        return {move(out)};
+    };
+
+    auto const static flushLastBits = [](vector<bool> const& writeCache) -> Buffer {
+        return {};  // TODO
+    };
+
+    auto const root = huffman::encode(input);
+    if (debug)
+        cerr << huffman::to_dot(root) << endl;
+
+	huffman::CodeTable const codeTable = huffman::encode(root);
+
+    write<uint64_t>(output, input.size());
+
+    for (uint8_t code = 0; code < 256; ++code)
     {
-        auto const root = huffman::encode(input);
-        huffman::CodeTable const codeTable = huffman::encode(root);
-
-        write<uint64_t>(*output, cache_.size());
-
-        for (uint8_t code = 0; code < 256; ++code)
-        {
-            auto const& bits = codeTable[code];
-            auto bytes = huffman::to_bytes(bits);
-            write<uint16_t>(*output, static_cast<uint16_t>(bits.size()));
-            for (auto const b : bytes)
-                write<uint8_t>(*output, b);
-        }
-
-        for (auto const value : input)
-            if (auto const& frame = writeBits(codeTable[value]); frame.has_value())
-                output->insert(output->end(), begin(*frame), end(*frame));
+        auto const& bits = codeTable[code];
+        auto bytes = huffman::to_bytes(bits);
+        write<uint16_t>(output, static_cast<uint16_t>(bits.size()));
+        for (auto const b : bytes)
+            write<uint8_t>(output, b);
     }
 
-    auto const lastFrame = flushLastBits();
-    output->insert(output->end(), begin(lastFrame), end(lastFrame));
-}
-
-optional<vector<uint8_t>> HuffmanEncoder::writeBits(std::vector<bool> const& bits)
-{
-    pendingBits_.insert(end(pendingBits_), begin(bits), end(bits));
-
-    size_t constexpr frameSize = 4096;
-
-    if (pendingBits_.size() < frameSize * 8)
-        return nullopt;
-
-    auto out = huffman::to_bytes(pendingBits_, frameSize * 8);
-    pendingBits_.erase(begin(pendingBits_), next(begin(pendingBits_), frameSize * 8));
-	return {move(out)};
-}
-
-Buffer HuffmanEncoder::flushLastBits()
-{
-    // TODO (zero-padded)
-    return {};
+    vector<bool> writeCache{};
+    for (auto const sym : input)
+        if (auto const frame = writeBits(codeTable[sym], writeCache); frame.has_value())
+            output.insert(end(output), begin(*frame), end(*frame));
+    auto const lastFrame = flushLastBits(writeCache);
+    output.insert(end(output), begin(lastFrame), end(lastFrame));
 }
 
 // -------------------------------------------------------------------------
-// XXX maybe going to be deleted
+// TODO: eliminate abstraction, istreoam/ostream is sufficient
 
 RawSource::RawSource(std::unique_ptr<istream> owned) : owned_{move(owned)}, source_{*owned_}
 {

@@ -62,7 +62,7 @@ unique_ptr<pipeline::Sink> createSink(string const& filename)
         throw std::runtime_error("Could not open file for writing.");
 }
 
-list<pipeline::Filter> populateFilters(string const& input, string const& output)
+list<pipeline::Filter> populateFilters(string const& input, string const& output, bool debug)
 {
     list<pipeline::Filter> filters;
 
@@ -85,11 +85,11 @@ list<pipeline::Filter> populateFilters(string const& input, string const& output
     else if (output == "rle")
         filters.emplace_back(pipeline::RLEEncoder{});
     else if (output == "huffman")
-        filters.emplace_back(pipeline::HuffmanEncoder{});
+        filters.emplace_back(pipeline::HuffmanEncoder{debug});
     else if (output == "rle+huffman")
     {
         filters.emplace_back(pipeline::RLEEncoder{});
-        filters.emplace_back(pipeline::HuffmanEncoder{});
+        filters.emplace_back(pipeline::HuffmanEncoder{debug});
     }
     else
         throw std::runtime_error{"Invalid output format specified: " + input};
@@ -109,6 +109,7 @@ int main(int argc, const char* argv[])
     cli.defineString("output-format", 'O', "FORMAT", "Specifies which format the output stream will be.",
                      "raw");
     cli.defineString("output-file", 'o', "PATH", "Specifies the path to the output file to write to.");
+    cli.defineBool("debug", 'D', "Enable some debug prints.");
     cli.defineBool("help", 'h', "Shows this help.");
 
     if (error_code ec = cli.tryParse(argc, argv); ec)
@@ -139,11 +140,12 @@ int main(int argc, const char* argv[])
         auto const inputFormat = cli.getString("input-format");
         auto const outputFile = cli.getString("output-file");
         auto const outputFormat = cli.getString("output-format");
+        auto const debug = cli.getBool("debug");
 
         auto source = createSource(inputFile);
         auto sink = createSink(outputFile);
 
-        auto filters = populateFilters(inputFormat, outputFormat);
+        auto filters = populateFilters(inputFormat, outputFormat, debug);
         auto input = pipeline::Buffer{};
         auto output = pipeline::Buffer{};
 

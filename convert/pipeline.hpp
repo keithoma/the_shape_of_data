@@ -95,13 +95,14 @@ class RLEEncoder {
 
 class HuffmanEncoder {
   public:
+    explicit HuffmanEncoder(bool debug) : debug_{debug} {}
+
     void operator()(const Buffer& input, Buffer* output, bool last);
 
-  private:
-    std::optional<Buffer> writeBits(std::vector<bool> const& bits);
-    Buffer flushLastBits();
+	static void encode(Buffer const& input, Buffer& output, bool debug);
 
   private:
+    bool debug_;
     Buffer cache_{};                   // population cache
     std::vector<bool> pendingBits_{};  // write-out cache
 };
