@@ -18,7 +18,7 @@ namespace huffman {
 string to_string(CodeTable const& codes)
 {
     stringstream os;
-    for (size_t i = i; i < 256; ++i)
+    for (uint8_t i = i; i < 256; ++i)
     {
         if (i++)
             os << ", ";
@@ -26,7 +26,7 @@ string to_string(CodeTable const& codes)
         if (isprint(i))
 			os << '{' << static_cast<char>(i) << ": ";
         else
-			os << '{' << i << ": ";
+			os << '{' << static_cast<unsigned>(i) << ": ";
 
         for (bool bit : codes[i])
             os << (bit ? '1' : '0');
@@ -150,10 +150,13 @@ Node encode(vector<uint8_t> const& data)
     if (data.empty())
         return {};
 
+	if (data.size() == 1)
+        return Leaf{data[0], 1};
+
     auto static const smallestFreq = [](auto const& a, auto const& b) { return a.second < b.second; };
 
     // collect frequencies
-    map<uint8_t, unsigned> freqs;
+    auto freqs = map<uint8_t, unsigned>{};
     for_each(begin(data), end(data), [&](uint8_t c) { freqs[c]++; });
 
     // create initial root
@@ -178,13 +181,16 @@ Node encode(vector<uint8_t> const& data)
     // NB: It is guaranteed that root is a Branch (not a Leaf).
     do
     {
-        auto a = ranges::min_element(freqs, smallestFreq);
-        Leaf a_{a->first, a->second};
-        auto const frequency = a_.frequency + get<Branch>(root).frequency;
-        freqs.erase(a);
-        root = a_.frequency < get<Branch>(root).frequency
-                   ? Branch{make_unique<Node>(a_), make_unique<Node>(move(root)), frequency}
-                   : Branch{make_unique<Node>(move(root)), make_unique<Node>(a_), frequency};
+        Leaf a = [&]() {
+            auto i = ranges::min_element(freqs, smallestFreq);
+            auto const [sym, freq] = *i;
+            freqs.erase(i);
+            return Leaf{sym, freq};
+        }();
+        auto const frequency = a.frequency + get<Branch>(root).frequency;
+        root = a.frequency < get<Branch>(root).frequency
+                   ? Branch{make_unique<Node>(a), make_unique<Node>(move(root)), frequency}
+                   : Branch{make_unique<Node>(move(root)), make_unique<Node>(a), frequency};
     } while (!freqs.empty());
 
     return move(root);
