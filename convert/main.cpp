@@ -85,7 +85,7 @@ list<pipeline::Filter> populateFilters(string const& input, string const& output
     else if (output == "rle")
         filters.emplace_back(pipeline::RLEEncoder{});
     else if (output == "huffman")
-        filters.emplace_back(pipeline::RLEEncoder{});
+        filters.emplace_back(pipeline::HuffmanEncoder{});
     else if (output == "rle+huffman")
     {
         filters.emplace_back(pipeline::RLEEncoder{});

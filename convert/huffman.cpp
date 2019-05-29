@@ -4,9 +4,12 @@
 #include <algorithm>
 #include <map>
 #include <sstream>
-#include <vector>
 #include <utility>
 #include <variant>
+#include <vector>
+
+#include <cassert>
+#include <cctype>
 
 using namespace std;
 
@@ -15,38 +18,86 @@ namespace huffman {
 string to_string(CodeTable const& codes)
 {
     stringstream os;
-    int i = 0;
-    for (auto const& code : codes)
+    for (size_t i = i; i < 256; ++i)
     {
         if (i++)
             os << ", ";
-        os << '{' << code.first << ": ";
-        for (bool bit : code.second)
+
+        if (isprint(i))
+			os << '{' << static_cast<char>(i) << ": ";
+        else
+			os << '{' << i << ": ";
+
+        for (bool bit : codes[i])
             os << (bit ? '1' : '0');
+
         os << '}';
     }
     return os.str();
 }
 
-CodeTable encode(Node const& root, vector<bool> state)
+vector<uint8_t> to_bytes(vector<bool> const& bits, size_t count)
 {
-    vector<pair<char, vector<bool>>> result;
+    assert(count <= bits.size());
 
-    if (holds_alternative<Leaf>(root))
-        result.emplace_back(make_pair(get<Leaf>(root).ch, state));
-    else
+    vector<uint8_t> out;
+
+    size_t i = 0;
+    for (; i + 7 < count; i += 8)
+        out.push_back((bits[i + 0] << 7) | (bits[i + 1] << 6) | (bits[i + 2] << 5) | (bits[i + 3] << 4)
+                      | (bits[i + 4] << 3) | (bits[i + 5] << 2) | (bits[i + 6] << 1) | (bits[i + 7] << 0));
+
+	if (i < count)
     {
-        auto const& br = get<Branch>(root);
+        auto path = uint8_t{0};
 
-        state.push_back(false);
-        auto x = encode(*br.left, state);
-        result.insert(end(result), begin(x), end(x));
+        if (i < bits.size())
+            path |= bits[i] << 7;
 
-        state.back() = true;
-        auto y = encode(*br.right, state);
-        result.insert(end(result), begin(y), end(y));
+        if (++i < bits.size())
+            path |= bits[i] << 6;
+
+        if (++i < bits.size())
+            path |= bits[i] << 5;
+
+        if (++i < bits.size())
+            path |= bits[i] << 4;
+
+        if (++i < bits.size())
+            path |= bits[i] << 3;
+
+        if (++i < bits.size())
+            path |= bits[i] << 2;
+
+        if (++i < bits.size())
+            path |= bits[i] << 1;
+
+        // no `<< 0`, as this case was already covered in the while-loop
+
+		out.push_back(path);
     }
 
+    return out;
+}
+
+void encode(Node const& root, CodeTable& result, vector<bool> state)
+{
+    if (holds_alternative<Leaf>(root))
+        result[get<Leaf>(root).ch] = state;
+    else
+    {
+        state.push_back(false);
+        encode(*get<Branch>(root).left, result, state);
+
+        state.back() = true;
+        encode(*get<Branch>(root).right, result, state);
+    }
+}
+
+CodeTable encode(Node const& root)
+{
+    CodeTable result;
+    encode(root, result, {});
     return result;
 }
 
@@ -58,7 +109,7 @@ static void write_dot(ostream& os, Node const& n)
     {
         auto const& br = get<Branch>(n);
         os << "\"-(" << br.frequency << ")\" -> " << to_dot(*br.left);
-		os << "\"-(" << br.frequency << ")\" -> " << to_dot(*br.right);
+        os << "\"-(" << br.frequency << ")\" -> " << to_dot(*br.right);
     }
     else
     {
@@ -94,7 +145,7 @@ string to_string(Node const& node)
     return os.str();
 }
 
-Node encode(string const& data)
+Node encode(vector<uint8_t> const& data)
 {
     if (data.empty())
         return {};
@@ -102,8 +153,8 @@ Node encode(string const& data)
     auto static const smallestFreq = [](auto const& a, auto const& b) { return a.second < b.second; };
 
     // collect frequencies
-    map<char, unsigned> freqs;
-    for_each(begin(data), end(data), [&](char c) { freqs[c]++; });
+    map<uint8_t, unsigned> freqs;
+    for_each(begin(data), end(data), [&](uint8_t c) { freqs[c]++; });
 
     // create initial root
     Node root = [&]() {

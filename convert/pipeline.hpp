@@ -53,7 +53,10 @@ class PPMEncoder {
   public:
     void operator()(Buffer const& input, Buffer* output, bool last);
 
-	static std::string encode(Buffer const& input); 
+  private:
+    void write(Buffer& output, char const* text);
+    void write(Buffer& output, unsigned value);
+    void write(Buffer& output, char ch);
 
   private:
     Buffer cache_;
@@ -93,7 +96,14 @@ class RLEEncoder {
 class HuffmanEncoder {
   public:
     void operator()(const Buffer& input, Buffer* output, bool last);
-	// TODO
+
+  private:
+    std::optional<Buffer> writeBits(std::vector<bool> const& bits);
+    Buffer flushLastBits();
+
+  private:
+    Buffer cache_{};                   // population cache
+    std::vector<bool> pendingBits_{};  // write-out cache
 };
 
 class HuffmanDecoder : public Filter {

@@ -93,11 +93,11 @@ void apply(list<Filter> const& filters, Buffer const& input, Buffer* output, boo
 
 void PPMDecoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
-    copy(begin(input), end(input), back_inserter(cache_));
+    ranges::copy(input, back_inserter(cache_));
 
     if (last)
     {
-        copy(begin(input), end(input), back_inserter(cache_));
+        ranges::copy(input, back_inserter(cache_));
         sgfx::canvas const canvas = sgfx::ppm::Parser{}.parseString(cache_);
 
         auto out = back_inserter(*output);
@@ -119,27 +119,27 @@ void PPMDecoder::operator()(Buffer const& input, Buffer* output, bool last)
     }
 }
 
-static void write(Buffer& output, char const* text)
+void PPMEncoder::write(Buffer& output, char const* text)
 {
     while (*text)
         output.push_back(*text++);
 }
 
-static void write(Buffer& output, unsigned value)
+void PPMEncoder::write(Buffer& output, unsigned value)
 {
     char buf[32];
     snprintf(buf, sizeof(buf), "%u", value);
     write(output, buf);
 }
 
-static void write(Buffer& output, char ch)
+void PPMEncoder::write(Buffer& output, char ch)
 {
     output.push_back(ch);
 }
 
 void PPMEncoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
-    copy(begin(input), end(input), back_inserter(cache_));
+    ranges::copy(input, back_inserter(cache_));
 
     if (last)
     {
@@ -169,7 +169,7 @@ void PPMEncoder::operator()(Buffer const& input, Buffer* output, bool last)
 
 void RLEDecoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
-    copy(begin(input), end(input), back_inserter(cache_));
+    ranges::copy(input, back_inserter(cache_));
 
     if (last)
     {
@@ -263,12 +263,56 @@ void RLEEncoder::operator()(Buffer const& input, Buffer* output, bool last)
 
 void HuffmanDecoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
-	// TODO
+    // TODO
 }
 
 void HuffmanEncoder::operator()(Buffer const& input, Buffer* output, bool last)
 {
-	// TODO
+    ranges::copy(input, back_inserter(cache_));
+
+    if (last)
+    {
+        auto const root = huffman::encode(input);
+        huffman::CodeTable const codeTable = huffman::encode(root);
+
+        write<uint64_t>(*output, cache_.size());
+
+        for (uint8_t code = 0; code < 256; ++code)
+        {
+            auto const& bits = codeTable[code];
+            auto bytes = huffman::to_bytes(bits);
+            write<uint16_t>(*output, static_cast<uint16_t>(bits.size()));
+            for (auto const b : bytes)
+                write<uint8_t>(*output, b);
+        }
+
+        for (auto const value : input)
+            if (auto const& frame = writeBits(codeTable[value]); frame.has_value())
+                output->insert(output->end(), begin(*frame), end(*frame));
+    }
+
+    auto const lastFrame = flushLastBits();
+    output->insert(output->end(), begin(lastFrame), end(lastFrame));
+}
+
+optional<vector<uint8_t>> HuffmanEncoder::writeBits(std::vector<bool> const& bits)
+{
+    pendingBits_.insert(end(pendingBits_), begin(bits), end(bits));
+
+    size_t constexpr frameSize = 4096;
+
+    if (pendingBits_.size() < frameSize * 8)
+        return nullopt;
+
+    auto out = huffman::to_bytes(pendingBits_, frameSize * 8);
+    pendingBits_.erase(begin(pendingBits_), next(begin(pendingBits_), frameSize * 8));
+	return {move(out)};
+}
+
+Buffer HuffmanEncoder::flushLastBits()
+{
+    // TODO (zero-padded)
+    return {};
 }
 
 // -------------------------------------------------------------------------
