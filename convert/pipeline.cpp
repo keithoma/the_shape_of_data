@@ -1,3 +1,13 @@
+// This file is part of the "convert" project, https://github.com/keithoma>
+//   (c) 2019 Kei Thoma <thomakei@gmail.com>
+//   (c) 2019 Christian Parpart <christian@parpart.family>
+//
+// Design idea originated from the x0 project, https://github.com/chrisitanparpart/x0.
+//
+// Licensed under the MIT License (the "License"); you may not use this
+// file except in compliance with the License. You may obtain a copy of
+// the License at: http://opensource.org/licenses/MIT
+
 #include "pipeline.hpp"
 #include "huffman.hpp"
 #include "utils.hpp"
