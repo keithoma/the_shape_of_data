@@ -420,7 +420,8 @@ void Flags::parse(const vector<string>& args)
 
 // -----------------------------------------------------------------------------
 
-string Flags::helpText(string_view const& header, size_t width, size_t helpTextOffset) const
+string Flags::helpText(string_view const& header, string_view const& footer, size_t width,
+                       size_t helpTextOffset) const
 {
     stringstream sstr;
 
@@ -448,6 +449,9 @@ string Flags::helpText(string_view const& header, size_t width, size_t helpTextO
 
         sstr << parametersHelpText_ << endl;
     }
+
+    if (!footer.empty())
+        sstr << '\n' << footer;
 
     return sstr.str();
 }

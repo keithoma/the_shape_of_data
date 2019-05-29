@@ -89,8 +89,8 @@ class Flags {
 
     Flags& enableParameters(const std::string& valuePlaceholder, const std::string& helpText);
 
-    std::string helpText(std::string_view const& header = "") const { return helpText(header, 78, 30); }
-    std::string helpText(std::string_view const& header, size_t width, size_t helpTextOffset) const;
+    std::string helpText(std::string_view const& header = "") const { return helpText(header, "", 78, 30); }
+    std::string helpText(std::string_view const& header, std::string_view const& footer, size_t width, size_t helpTextOffset = 30) const;
 
     const FlagDef* findDef(const std::string& longOption) const;
     const FlagDef* findDef(char shortOption) const;
