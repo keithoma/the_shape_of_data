@@ -74,8 +74,6 @@ class RLEDecoder {
     void operator()(const Buffer& input, Buffer* output, bool last);
 
   private:
-    RLEState state_ = RLEState::Width1; // TODO: make use of it (performance increase)!
-
     std::string cache_;
 };
 
@@ -84,8 +82,8 @@ class RLEEncoder {
     void operator()(const Buffer& input, Buffer* output, bool last);
 
   private:
-	RLEState state_ = RLEState::Width1;
     Buffer cache_{};
+	RLEState state_ = RLEState::Width1;
     unsigned width_ = 0;
     unsigned height_ = 0;
     unsigned currentLine_ = 0;

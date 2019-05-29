@@ -6,12 +6,13 @@
 #include <sgfx/image.hpp>
 #include <sgfx/ppm.hpp>
 
-#include <cmath>
-#include <cstdlib>
-#include <cassert>
 #include <iostream>
 #include <iterator>
 #include <sstream>
+
+#include <cassert>
+#include <cmath>
+#include <cstdlib>
 
 using namespace std;
 
@@ -243,21 +244,31 @@ void RLEEncoder::operator()(Buffer const& input, Buffer* output, bool last)
                 break;
             case RLEState::PixelBlue:
                 cache_.push_back(input[i]);
-                state_ = RLEState::PixelRed;
-                currentColumn_++;
+                ++currentColumn_;
                 if (currentColumn_ == width_)
                 {
+                    sgfx::rle_image::encodeLine(cache_, *output);
                     currentColumn_ = 0;
                     currentLine_++;
-                    sgfx::rle_image::encodeLine(cache_, *output);
-					// TODO: flush line
+                    cache_.clear();
                 }
+                state_ = RLEState::PixelRed;
                 break;
             default:
                 assert(!"Internal Bug. Please report me.");
                 abort();
         }
     }
+}
+
+void HuffmanDecoder::operator()(Buffer const& input, Buffer* output, bool last)
+{
+	// TODO
+}
+
+void HuffmanEncoder::operator()(Buffer const& input, Buffer* output, bool last)
+{
+	// TODO
 }
 
 // -------------------------------------------------------------------------

@@ -41,7 +41,7 @@ unsigned getTerminalWidth(int terminalFd)
     ioctl(STDIN_FILENO, TIOCGWINSZ, &ts);
     return ts.ws_col;
 #else
-	// default (I intentionally did not chose 80 here), as it's aged.
+    // default (I intentionally did not chose 80 here), as it's aged.
     return 110;
 #endif
 }
@@ -71,20 +71,34 @@ list<pipeline::Filter> populateFilters(string const& input, string const& output
     else if (input == "rle")
         filters.emplace_back(pipeline::RLEDecoder{});
     else if (input == "huffman")
-        ;  // TODO
+        filters.emplace_back(pipeline::HuffmanDecoder{});
+    else if (input == "rle+huffman")
+    {
+        filters.emplace_back(pipeline::HuffmanDecoder{});
+        filters.emplace_back(pipeline::RLEDecoder{});
+    }
     else
-        ;  // TODO
+        throw std::runtime_error{"Invalid input format specified: " + input};
 
-	if (output == "ppm")
+    if (output == "ppm")
         filters.emplace_back(pipeline::PPMEncoder{});
     else if (output == "rle")
-        ;  // TODO
+        filters.emplace_back(pipeline::RLEEncoder{});
     else if (output == "huffman")
-        ;  // TODO
+        filters.emplace_back(pipeline::RLEEncoder{});
+    else if (output == "rle+huffman")
+    {
+        filters.emplace_back(pipeline::RLEEncoder{});
+        filters.emplace_back(pipeline::HuffmanEncoder{});
+    }
     else
-        ;  // TODO
+        throw std::runtime_error{"Invalid output format specified: " + input};
 
-	return filters;
+	if (input == output)
+		// we intentionally populate/destruct so we also have know that file formats were valid.
+        filters.clear();
+
+    return filters;
 }
 
 int main(int argc, const char* argv[])

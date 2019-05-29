@@ -13,6 +13,8 @@
 #include <string>
 #include <utility>
 
+#include <cassert>
+
 using namespace std;
 
 #define let auto /* Pure provocation with respect to my dire love to F# & my hate to C++ auto keyword. */
@@ -76,6 +78,27 @@ void save_ppm(widget const& image, const std::string& filename)
 
 void rle_image::encodeLine(std::vector<uint8_t> const& input, std::vector<uint8_t>& output)
 {
+    size_t i = 0;
+    while (i + 2 < input.size())
+    {
+        auto const red = input[i++];
+        auto const green = input[i++];
+        auto const blue = input[i++];
+
+        auto count = uint8_t{1};
+        while (i + 2 < input.size() && count < 255 && input[i] == red && input[i + 1] == green
+               && input[i + 2] == blue)
+        {
+			i += 3;
+            ++count;
+        }
+
+        output.push_back(count);
+        output.push_back(red);
+        output.push_back(green);
+        output.push_back(blue);
+    }
+    assert(i == input.size());
 }
 
 std::vector<rle_image::Run> rle_image::decodeLine(uint8_t const* line, size_t width)
