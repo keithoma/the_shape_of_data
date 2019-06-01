@@ -7,53 +7,37 @@
 
 namespace bitstream {
 
-using BitVector = std::vector<bool>;
-
 class BitStreamWriter {
   public:
-    explicit BitStreamWriter(std::ostream& output) : cache_{}, output_{output} {}
+    explicit BitStreamWriter(std::ostream& output) : cache_{0}, current_{0}, output_{output} {}
 
-    void write(std::vector<bool> const& bits) { cache_.insert(cache_.end(), bits.begin(), bits.end()); }
-
-    void flush(bool bytePadding = false)
+    void write(std::vector<bool> const& bits)
     {
-        size_t const numFullBytes = cache_.size() / 8;
-        size_t const numRemainingBits = cache_.size() % 8;
+        for (bool bit : bits)
+            write(bit);
+    }
 
-        size_t i = 0;
-        for (; i + 7 < numFullBytes; i += 8)
-        {
-            auto const b = static_cast<std::byte>(
-                (cache_[i + 0] << 7) | (cache_[i + 1] << 6) | (cache_[i + 2] << 5) | (cache_[i + 3] << 4)
-                | (cache_[i + 4] << 3) | (cache_[i + 5] << 2) | (cache_[i + 6] << 1) | (cache_[i + 7] << 0));
-            output_.write((char const*) &b, sizeof(b));
-        }
+    void write(bool bit)
+    {
+        if (bit)
+            cache_ |= (1 << ((sizeof(cache_) * 8) - current_));
 
-        if (!numRemainingBits)
-            cache_.clear();
-        else if (bytePadding)
-        {
-            // NB: Left-most bit always goes in & right-most bit is always zero.
-            auto const rem = [&]() {
-                uint8_t rem = cache_[i] << 7;
-                for (size_t k = 6; k >= 1; --k)  // for each bit from 6 to 1
-                    if (++i < cache_.size())
-                        rem |= cache_[i] << k;
-                return rem;
-            }();
+        current_++;
 
-            output_.write((char const*) &rem, sizeof(rem));
-            cache_.clear();
-        }
-        else
-        {
-            rotate(begin(cache_), next(begin(cache_), cache_.size() - numRemainingBits), end(cache_));
-            cache_.resize(numRemainingBits);
-        }
+        if (current_ == sizeof(cache_) * 8)
+            flush();
+    }
+
+    void flush()
+    {
+        output_.write((char const*) &cache_, sizeof(cache_));
+        current_ = 0;
+        cache_ = 0;
     }
 
   private:
-    std::vector<bool> cache_;
+    uint64_t cache_;
+    size_t current_;
     std::ostream& output_;
 };
 
