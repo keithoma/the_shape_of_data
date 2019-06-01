@@ -1,3 +1,11 @@
+// This file is part of the "convert" project, http://github.com/keithoma>
+//   (c) 2019 Kei Thoma <thomakei@gmail.com>
+//   (c) 2019 Christian Parpart <christian@parpart.family>
+//
+// Licensed under the MIT License (the "License"); you may not use this
+// file except in compliance with the License. You may obtain a copy of
+// the License at: http://opensource.org/licenses/MIT
+
 #pragma once
 
 #include <algorithm>
@@ -11,14 +19,13 @@ namespace bitstream {
 class BitStreamWriter {
   public:
     using Writer = std::function<void(std::byte const*, std::size_t)>;
+
     explicit BitStreamWriter(Writer writer) : cache_{0}, current_{0}, writer_{move(writer)} {}
-    explicit BitStreamWriter(std::ostream& output) :
-		BitStreamWriter{
-			[out = std::ref(output)](std::byte const* data, size_t count) mutable
-			{
+
+    explicit BitStreamWriter(std::ostream& output)
+        : BitStreamWriter{[out = std::ref(output)](std::byte const* data, size_t count) mutable {
               out.get().write((char const*) data, count);
-			}
-		}
+          }}
     {
     }
 
@@ -41,7 +48,7 @@ class BitStreamWriter {
 
     void flush()
     {
-        writer_((std::byte const *) &cache_, sizeof(cache_));
+        writer_((std::byte const*) &cache_, sizeof(cache_));
         current_ = 0;
         cache_ = 0;
     }
