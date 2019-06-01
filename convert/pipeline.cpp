@@ -11,6 +11,7 @@
 #include "pipeline.hpp"
 #include "huffman.hpp"
 #include "utils.hpp"
+#include "bitstream.hpp"
 
 #include <sgfx/color.hpp>
 #include <sgfx/image.hpp>
@@ -274,7 +275,21 @@ void RLEEncoder::operator()(Buffer const& input, Buffer& output, bool last)
 
 void HuffmanDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
-    // TODO
+    uint64_t const originalSize =
+        static_cast<uint64_t>(input[0]) << 56 | static_cast<uint64_t>(input[1]) << 48
+        | static_cast<uint64_t>(input[2]) << 40 | static_cast<uint64_t>(input[3]) << 32
+        | static_cast<uint64_t>(input[4]) << 24 | static_cast<uint64_t>(input[5]) << 16
+        | static_cast<uint64_t>(input[6]) << 8 | static_cast<uint64_t>(input[7]);
+
+    auto reader = bitstream::BitStreamReader{input};
+    reader.skip(64);
+
+    // TODO: read code table
+
+	// TODO: read data payload
+    size_t decodedByteCount = 0;
+
+	assert(decodedByteCount == originalSize);
 }
 
 void HuffmanEncoder::operator()(Buffer const& input, Buffer& output, bool last)

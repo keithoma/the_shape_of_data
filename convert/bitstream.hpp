@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 namespace bitstream {
@@ -72,6 +73,20 @@ class BitStreamReader {
     {
     }
 
+    explicit BitStreamReader(std::vector<uint8_t> const& bytes)
+        : BitStreamReader{[bytes, i = size_t{0}](std::byte* data, std::size_t count) mutable {
+              if (i + count < bytes.size())
+              {
+                  for (size_t k = 0; k < count; ++k)
+                      data[k] = static_cast<std::byte>(bytes[i + k]);
+                  i += count;
+              }
+              else
+                  throw std::runtime_error{"Reading beyond bit-stream."};
+          }}
+    {
+    }
+
     void read(std::vector<bool> bits, size_t count)
     {
         for (size_t i = 0; i < count; ++i)
@@ -80,11 +95,20 @@ class BitStreamReader {
 
     bool read()
     {
-        if (current_ != sizeof(cache_) * 8)
-            return (cache_ & (1llu << current_)) != 0;
+        if (current_ == sizeof(cache_) * 8)
+        {
+			current_ = 0;
+			cache_ = 0;
+			reader_((std::byte*) &cache_, sizeof(cache_));
+        }
 
-        current_ = 0;
-        reader_((std::byte*) &cache_, sizeof(cache_));
+        return (cache_ & (1llu << current_++)) != 0;
+    }
+
+    void skip(size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+            read();
     }
 
   private:
