@@ -21,8 +21,8 @@ auto static constexpr optionColor = AnsiColor::codes<AnsiColor::Bold | AnsiColor
 auto static constexpr valueColor = AnsiColor::codes<AnsiColor::Bold | AnsiColor::Red>();
 auto static constexpr headerColor = AnsiColor::codes<AnsiColor::Bold | AnsiColor::Green>();
 
-// {{{ Flags::Error
-Flags::Error::Error(ErrorCode code, string arg)
+// {{{ Flags::FlagError
+FlagError::FlagError(FlagErrorCode code, string arg)
     : runtime_error{FlagsErrorCategory::get().message(static_cast<int>(code)) + ": " + arg}, code_{code},
       arg_{move(arg)}
 {
@@ -60,7 +60,7 @@ string Flags::asString(const string& flag) const
 {
     auto i = set_.find(flag);
     if (i == set_.end())
-        throw Error{ErrorCode::NotFound, flag};
+        throw FlagError{FlagErrorCode::NotFound, flag};
 
     return i->second.second;
 }
@@ -69,10 +69,10 @@ string Flags::getString(const string& flag) const
 {
     auto i = set_.find(flag);
     if (i == set_.end())
-        throw Error{ErrorCode::NotFound, flag};
+        throw FlagError{FlagErrorCode::NotFound, flag};
 
     if (i->second.first != FlagType::String)
-        throw Error{ErrorCode::TypeMismatch, flag};
+        throw FlagError{FlagErrorCode::TypeMismatch, flag};
 
     return i->second.second;
 }
@@ -81,10 +81,10 @@ long int Flags::getNumber(const string& flag) const
 {
     auto i = set_.find(flag);
     if (i == set_.end())
-        throw Error{ErrorCode::NotFound, flag};
+        throw FlagError{FlagErrorCode::NotFound, flag};
 
     if (i->second.first != FlagType::Number)
-        throw Error{ErrorCode::TypeMismatch, flag};
+        throw FlagError{FlagErrorCode::TypeMismatch, flag};
 
     return stoi(i->second.second);
 }
@@ -93,10 +93,10 @@ float Flags::getFloat(const string& flag) const
 {
     auto i = set_.find(flag);
     if (i == set_.end())
-        throw Error{ErrorCode::NotFound, flag};
+        throw FlagError{FlagErrorCode::NotFound, flag};
 
     if (i->second.first != FlagType::Float)
-        throw Error{ErrorCode::TypeMismatch, flag};
+        throw FlagError{FlagErrorCode::TypeMismatch, flag};
 
     return stof(i->second.second);
 }
@@ -271,7 +271,7 @@ error_code Flags::tryParse(const vector<string>& args)
     {
         parse(args);
     }
-    catch (const Error& parseError)
+    catch (const FlagError& parseError)
     {
         return parseError.code();
     }
@@ -311,7 +311,7 @@ void Flags::parse(const vector<string>& args)
             if (parametersEnabled_)
                 pstate = ParsingState::Parameters;
             else
-                throw Error{ErrorCode::UnknownOption, arg};
+                throw FlagError{FlagErrorCode::UnknownOption, arg};
         }
         else if (arg.size() > 2 && arg[0] == '-' && arg[1] == '-')
         {
@@ -324,7 +324,7 @@ void Flags::parse(const vector<string>& args)
                 name = name.substr(0, eq);
                 const FlagDef* fd = findDef(name);
                 if (fd == nullptr)
-                    throw Error{ErrorCode::UnknownOption, arg};
+                    throw FlagError{FlagErrorCode::UnknownOption, arg};
                 else
                     invokeCallback(fd, FlagStyle::LongWithValue, value);
             }
@@ -332,7 +332,7 @@ void Flags::parse(const vector<string>& args)
             {  // --name [VALUE]
                 const FlagDef* fd = findDef(name);
                 if (fd == nullptr)
-                    throw Error{ErrorCode::UnknownOption, arg};
+                    throw FlagError{FlagErrorCode::UnknownOption, arg};
                 else if (fd->type == FlagType::Bool)
                     // --name
                     invokeCallback(fd, FlagStyle::LongSwitch, "true");
@@ -340,7 +340,7 @@ void Flags::parse(const vector<string>& args)
                 {
                     // --name VALUE
                     if (i >= args.size())
-                        throw Error{ErrorCode::MissingOption, arg};
+                        throw FlagError{FlagErrorCode::MissingOption, arg};
 
                     string value = args[i];
                     i++;
@@ -357,7 +357,7 @@ void Flags::parse(const vector<string>& args)
             {
                 const FlagDef* fd = findDef(arg[0]);
                 if (fd == nullptr)  // option not found
-                    throw Error{ErrorCode::UnknownOption, "-" + arg.substr(0, 1)};
+                    throw FlagError{FlagErrorCode::UnknownOption, "-" + arg.substr(0, 1)};
                 else if (fd->type == FlagType::Bool)
                 {
                     invokeCallback(fd, FlagStyle::ShortSwitch, "true");
@@ -377,7 +377,7 @@ void Flags::parse(const vector<string>& args)
                     if (i >= args.size())
                     {
                         char option[3] = {'-', fd->shortOption, '\0'};
-                        throw Error{ErrorCode::MissingOptionValue, option};
+                        throw FlagError{FlagErrorCode::MissingOptionValue, option};
                     }
 
                     arg.clear();
@@ -387,7 +387,7 @@ void Flags::parse(const vector<string>& args)
                     if (!value.empty() && value[0] == '-')
                     {
                         char option[3] = {'-', fd->shortOption, '\0'};
-                        throw Error{ErrorCode::MissingOptionValue, option};
+                        throw FlagError{FlagErrorCode::MissingOptionValue, option};
                     }
 
                     invokeCallback(fd, FlagStyle::ShortSwitch, value);
@@ -397,7 +397,7 @@ void Flags::parse(const vector<string>& args)
         else if (parametersEnabled_)
             params.push_back(arg);
         else
-            throw Error{ErrorCode::UnknownOption, arg};
+            throw FlagError{FlagErrorCode::UnknownOption, arg};
     }
 
     setParameters(params);
@@ -477,7 +477,7 @@ static string wordWrap(const string& text, size_t currentWidth, size_t width, si
     return sstr.str();
 }
 
-error_code make_error_code(Flags::ErrorCode errc)
+error_code make_error_code(FlagErrorCode errc)
 {
     return error_code(static_cast<int>(errc), FlagsErrorCategory::get());
 }
@@ -545,17 +545,17 @@ const char* FlagsErrorCategory::name() const noexcept
 
 string FlagsErrorCategory::message(int ec) const
 {
-    switch (static_cast<Flags::ErrorCode>(ec))
+    switch (static_cast<FlagErrorCode>(ec))
     {
-        case Flags::ErrorCode::TypeMismatch:
+        case FlagErrorCode::TypeMismatch:
             return "Type Mismatch";
-        case Flags::ErrorCode::UnknownOption:
+        case FlagErrorCode::UnknownOption:
             return "Unknown Option";
-        case Flags::ErrorCode::MissingOption:
+        case FlagErrorCode::MissingOption:
             return "Missing Option";
-        case Flags::ErrorCode::MissingOptionValue:
+        case FlagErrorCode::MissingOptionValue:
             return "Missing Option Value";
-        case Flags::ErrorCode::NotFound:
+        case FlagErrorCode::NotFound:
             return "Flag Not Found";
         default:
             return "<UNKNOWN>";

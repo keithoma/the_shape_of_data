@@ -18,6 +18,29 @@
 
 namespace flags {
 
+// FlagPassingStyle
+enum FlagStyle { ShortSwitch, LongSwitch, ShortWithValue, LongWithValue, UnnamedParameter };
+
+enum class FlagErrorCode {
+	TypeMismatch,
+	UnknownOption,
+	MissingOption,
+	MissingOptionValue,
+	NotFound,
+};
+
+class FlagError : public std::runtime_error {
+  public:
+	FlagError(FlagErrorCode code, std::string arg);
+
+	FlagErrorCode code() const noexcept { return code_; }
+	const std::string& arg() const noexcept { return arg_; }
+
+  private:
+	FlagErrorCode code_;
+	std::string arg_;
+};
+
 class Flags {
   public:
     enum class FlagType {
@@ -25,29 +48,6 @@ class Flags {
         Number,
         Float,
         Bool,
-    };
-
-    // FlagPassingStyle
-    enum FlagStyle { ShortSwitch, LongSwitch, ShortWithValue, LongWithValue, UnnamedParameter };
-
-    enum class ErrorCode {
-        TypeMismatch,
-        UnknownOption,
-        MissingOption,
-        MissingOptionValue,
-        NotFound,
-    };
-
-    class Error : public std::runtime_error {
-      public:
-        Error(ErrorCode code, std::string arg);
-
-        ErrorCode code() const noexcept { return code_; }
-        const std::string& arg() const noexcept { return arg_; }
-
-      private:
-        ErrorCode code_;
-        std::string arg_;
     };
 
     struct FlagDef;
@@ -162,12 +162,12 @@ class FlagsErrorCategory : public std::error_category {
     std::string message(int ec) const override;
 };
 
-std::error_code make_error_code(Flags::ErrorCode errc);
+std::error_code make_error_code(FlagErrorCode errc);
 
 }  // namespace flags
 
 namespace std {
 template <>
-struct is_error_code_enum<flags::Flags::ErrorCode> : public std::true_type {
+struct is_error_code_enum<flags::FlagErrorCode> : public std::true_type {
 };
 }  // namespace std
