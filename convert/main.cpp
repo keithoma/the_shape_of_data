@@ -152,28 +152,37 @@ int main(int argc, const char* argv[])
     }
     else
     {
-        auto const inputFile = cli.getString("input-file");
-        auto const inputFormat = cli.getString("input-format");
-        auto const outputFile = cli.getString("output-file");
-        auto const outputFormat = cli.getString("output-format");
-        auto const debug = cli.getBool("debug");
+        try
+        {
+            auto const inputFile = cli.getString("input-file");
+            auto const inputFormat = cli.getString("input-format");
+            auto const outputFile = cli.getString("output-file");
+            auto const outputFormat = cli.getString("output-format");
+            auto const debug = cli.getBool("debug");
 
-        auto source = ifstream{inputFile};
-        if (!source.is_open())
-            throw std::runtime_error("Could not open file.");
-        auto sink = ofstream{outputFile, ios::binary | ios::trunc};
+            auto source = ifstream{inputFile};
+            if (!source.is_open())
+                throw std::runtime_error("Could not open file.");
+            auto sink = ofstream{outputFile, ios::binary | ios::trunc};
 
-        auto filters = populateFilters(inputFormat, outputFormat, debug);
-        auto input = pipeline::Buffer{};
-        auto output = pipeline::Buffer{};
+            auto filters = populateFilters(inputFormat, outputFormat, debug);
+            auto input = pipeline::Buffer{};
+            auto output = pipeline::Buffer{};
 
-        input.reserve(4096);  // page-size
+            input.reserve(4096);  // page-size
 
-        for (; !read(source, input).empty(); input.clear())
-            write(sink, pipeline::apply(filters, input, output, false));
+            for (; !read(source, input).empty(); input.clear())
+                write(sink, pipeline::apply(filters, input, output, false));
 
-        // mark end in filter pipeline, in case some filter eventually still has to flush something.
-        write(sink, pipeline::apply(filters, {}, output, true));
+            // mark end in filter pipeline, in case some filter eventually still has to flush something.
+            write(sink, pipeline::apply(filters, {}, output, true));
+        }
+        catch (flags::FlagError const& flagError)
+        {
+            cerr << make_error_code(flagError.code()).message() + ": " + flagError.arg() << '\n'
+                 << "Try --help instead.\n";
+            return EXIT_FAILURE;
+        }
     }
 
     return EXIT_SUCCESS;
