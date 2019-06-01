@@ -7,6 +7,7 @@
 // the License at: http://opensource.org/licenses/MIT
 
 #include "huffman.hpp"
+#include "bitstream.hpp"
 #include "utils.hpp"
 
 #include <algorithm>
