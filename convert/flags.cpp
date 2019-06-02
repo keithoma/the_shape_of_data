@@ -30,8 +30,8 @@ FlagError::FlagError(FlagErrorCode code, string arg)
 // }}}
 
 // {{{ Flag
-Flags::Flag::Flag(const string& opt, const string& val, FlagStyle fs, FlagType ft)
-    : type_(ft), style_(fs), name_(opt), value_(val)
+Flags::Flag::Flag(string opt, string val, FlagStyle fs, FlagType ft)
+    : type_(ft), style_(fs), name_(move(opt)), value_(move(val))
 {
 }
 // }}}
@@ -251,7 +251,7 @@ void Flags::parse(int argc, const char* argv[])
 {
     vector<string> args;
     for (int i = 1; i < argc; ++i)
-        args.push_back(argv[i]);
+        args.emplace_back(argv[i]);
 
     parse(args);
 }
@@ -260,7 +260,7 @@ std::error_code Flags::tryParse(int argc, const char* argv[])
 {
     vector<string> args;
     for (int i = 1; i < argc; ++i)
-        args.push_back(argv[i]);
+        args.emplace_back(argv[i]);
 
     return tryParse(args);
 }

@@ -136,16 +136,12 @@ struct Flags::FlagDef {
 
 class Flags::Flag {
   public:
-    Flag(const std::string& opt, const std::string& val, FlagStyle fs, FlagType ft);
+    Flag(std::string opt, std::string val, FlagStyle fs, FlagType ft);
 
-    explicit Flag(char shortOpt);
-    Flag(char shortOpt, const std::string& val);
-    Flag(const std::string& longOpt);
-    Flag(const std::string& longOpt, const std::string& val);
-
-    FlagType type() const { return type_; }
-    const std::string& name() const { return name_; }
-    const std::string& value() const { return value_; }
+    FlagType type() const noexcept { return type_; }
+	FlagStyle style() const noexcept { return style_; }
+    const std::string& name() const noexcept { return name_; }
+    const std::string& value() const noexcept { return value_; }
 
   private:
     FlagType type_;
