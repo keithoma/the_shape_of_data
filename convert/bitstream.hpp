@@ -42,7 +42,7 @@ class BitStreamWriter {
     void writeAligned(T const& value)
     {
         if (current_ != 0)
-            throw logic_error{"Bitstream must be aligned in order to write non-bits."};
+            throw std::logic_error{"Bitstream must be aligned in order to write non-bits."};
 
         writer_((std::byte const*) &value, sizeof(value));
     }

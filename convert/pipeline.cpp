@@ -336,7 +336,7 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& d
         printf("  flush: %zu bytes:\n", count);
         for (size_t i = 0; i < count; ++i)
         {
-            printf("    %02x", data[i]);
+            printf("    %02x", static_cast<unsigned>(data[i]));
             for (size_t k = 0; k < 8; ++k)
             {
                 if ((k % 4) == 0)
