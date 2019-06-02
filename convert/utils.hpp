@@ -60,7 +60,7 @@ template <typename T> span(T const* data, std::size_t size)->span<T>;
 namespace ranges {
 
 template <typename Container, typename F>
-inline auto min_element(Container& container, F f)
+inline auto min_element(Container const& container, F f)
 {
     return std::min_element(begin(container), end(container), f);
 }
