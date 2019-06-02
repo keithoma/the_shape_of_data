@@ -303,7 +303,7 @@ void HuffmanEncoder::operator()(Buffer const& input, Buffer& output, bool last)
 
 void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& dotfileName, bool debug)
 {
-	auto const static debugCode = [](uint8_t code, huffman::BitVector const& bits,
+    auto const static debugCode = [](uint8_t code, huffman::BitVector const& bits,
                                      vector<uint8_t> const& bytesPadded) {
         if (!bytesPadded.empty())
         {
@@ -332,7 +332,7 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& d
         printf("\n");
     };
 
-	auto const static debugFlush = [](byte const* data, size_t count) {
+    auto const static debugFlush = [](byte const* data, size_t count) {
         printf("  flush: %zu bytes:\n", count);
         for (size_t i = 0; i < count; ++i)
         {
@@ -348,19 +348,18 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& d
     };
 
     auto const static flusher = [](Buffer& output, bool debug) {
-        return [debug, output = ref(output)](std::byte const* data, size_t count) mutable {
-			if (debug)
-				debugFlush(data, count);
+        return [debug, output = ref(output)](byte const* data, size_t count) mutable {
+            if (debug)
+                debugFlush(data, count);
 
-            //ranges::copy(util::span{data, count}, back_inserter(output));
-			for (size_t i = 0; i < count; ++i)
-                output.get().push_back(to_integer<uint8_t>(data[i]));
-		};
+            auto const static phi = [](byte value) { return to_integer<uint8_t>(value); };
+            ranges::transform(util::span{data, count}, back_inserter(output.get()), phi);
+        };
     };
 
     auto const root = huffman::encode(input);
     auto const codeTable = huffman::CodeTable{huffman::encode(root)};
-	auto writer = bitstream::BitStreamWriter{flusher(output, debug)};
+    auto writer = bitstream::BitStreamWriter{flusher(output, debug)};
 
     if (!dotfileName.empty())
         ofstream{dotfileName, ios::trunc} << huffman::to_dot(root) << '\n';
@@ -376,8 +375,8 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& d
         auto const& bits = codeTable[code];
         auto const bytesPadded = huffman::to_bytes(bits);
 
-		if (debug)
-			debugCode(static_cast<uint8_t>(code), bits, bytesPadded);
+        if (debug)
+            debugCode(static_cast<uint8_t>(code), bits, bytesPadded);
 
         writer.writeAligned<uint16_t>(static_cast<uint16_t>(bits.size()));
         for (auto const b : bytesPadded)

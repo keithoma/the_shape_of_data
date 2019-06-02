@@ -66,7 +66,7 @@ inline auto min_element(Container& container, F f)
 }
 
 template <typename Container, typename OutputIterator>
-inline void copy(Container& input, OutputIterator output)
+inline void copy(Container const& input, OutputIterator output)
 {
     std::copy(begin(input), end(input), output);
 }
@@ -84,7 +84,7 @@ inline void for_each(Container const& container, F f)
 }
 
 template <typename C, typename D, typename F>
-inline void transform(C const& c, D& d, F f)
+inline void transform(C const& c, D d, F f)
 {
     std::transform(begin(c), end(c), d, f);
 }
