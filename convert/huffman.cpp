@@ -28,7 +28,7 @@ namespace huffman {
 string to_string(CodeTable const& codes)
 {
     stringstream os;
-    for (uint8_t i = 0; i < 256; ++i)
+    for (unsigned i = 0; i < 256; ++i)
     {
         if (i++)
             os << ", ";

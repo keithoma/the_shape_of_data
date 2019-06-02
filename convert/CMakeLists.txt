@@ -21,6 +21,7 @@ add_executable(convert
 set_target_properties(convert PROPERTIES
 	CXX_STANDARD 17
 	CXX_STANDARD_REQUIRED ON
+	CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
 	VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 target_include_directories(convert PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
