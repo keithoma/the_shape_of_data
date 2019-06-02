@@ -223,7 +223,7 @@ void RLEDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 
 void RLEEncoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
-	for (auto const symbol : input)
+    for (auto const symbol : input)
     {
         switch (state_)
         {
@@ -308,7 +308,7 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& d
         if (!bytesPadded.empty())
         {
             printf("[%03u]", code);
-			for (auto const byteValue : bytesPadded)
+            for (auto const byteValue : bytesPadded)
                 printf(" %02x", byteValue);
             printf(" ");
             for (size_t i = 0; i < bits.size(); ++i)
@@ -370,9 +370,8 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& d
     // code table
     if (debug)
         printf("Code Table:\n");
-    for (size_t code = 0; code < 256; ++code)
+    for (auto&& [code, bits] : ranges::indexed(codeTable))
     {
-        auto const& bits = codeTable[code];
         auto const bytesPadded = huffman::to_bytes(bits);
 
         if (debug)
