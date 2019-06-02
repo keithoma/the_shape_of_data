@@ -123,7 +123,7 @@ class HuffmanEncoder {
     std::vector<bool> pendingBits_{};  // write-out cache
 };
 
-class HuffmanDecoder : public Filter {
+class HuffmanDecoder {
   public:
     void operator()(const Buffer& input, Buffer& output, bool last);
     // TODO
