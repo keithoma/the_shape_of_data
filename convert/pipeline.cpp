@@ -223,40 +223,40 @@ void RLEDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 
 void RLEEncoder::operator()(Buffer const& input, Buffer& output, bool last)
 {
-    for (size_t i = 0; i < input.size(); ++i)
+	for (auto const symbol : input)
     {
         switch (state_)
         {
             case RLEState::Width1:
-                width_ |= input[i] & 0xFF;
-                output.push_back(input[i]);
+                width_ |= symbol & 0xFF;
+                output.push_back(symbol);
                 state_ = RLEState::Width2;
                 break;
             case RLEState::Width2:
-                width_ |= (input[i] << 8) & 0xFF00;
-                output.push_back(input[i]);
+                width_ |= (symbol << 8) & 0xFF00;
+                output.push_back(symbol);
                 state_ = RLEState::Height1;
                 break;
             case RLEState::Height1:
-                height_ |= input[i] & 0xFF;
-                output.push_back(input[i]);
+                height_ |= symbol & 0xFF;
+                output.push_back(symbol);
                 state_ = RLEState::Height2;
                 break;
             case RLEState::Height2:
-                height_ |= (input[i] << 8) & 0xFF00;
-                output.push_back(input[i]);
+                height_ |= (symbol << 8) & 0xFF00;
+                output.push_back(symbol);
                 state_ = RLEState::PixelRed;
                 break;
             case RLEState::PixelRed:
-                cache_.push_back(input[i]);
+                cache_.push_back(symbol);
                 state_ = RLEState::PixelGreen;
                 break;
             case RLEState::PixelGreen:
-                cache_.push_back(input[i]);
+                cache_.push_back(symbol);
                 state_ = RLEState::PixelBlue;
                 break;
             case RLEState::PixelBlue:
-                cache_.push_back(input[i]);
+                cache_.push_back(symbol);
                 ++currentColumn_;
                 if (currentColumn_ == width_)
                 {
@@ -308,8 +308,8 @@ void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& d
         if (!bytesPadded.empty())
         {
             printf("[%03u]", code);
-            for (size_t i = 0; i < bytesPadded.size(); ++i)
-                printf(" %02x", bytesPadded[i]);
+			for (auto const byteValue : bytesPadded)
+                printf(" %02x", byteValue);
             printf(" ");
             for (size_t i = 0; i < bits.size(); ++i)
             {
