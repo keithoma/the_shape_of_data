@@ -127,7 +127,7 @@ string label(Node const& n)
         Branch const& br = get<Branch>(n);
         snprintf(buf, sizeof(buf), "-(%u)", br.frequency);
     }
-    return buf;
+    return string{buf};
 }
 
 // helper method for streaming Huffman tree in dot-file format (see graphviz) into an output stream.
