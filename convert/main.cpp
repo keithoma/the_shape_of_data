@@ -56,7 +56,8 @@ static unsigned getTerminalWidth(int terminalFd)
 #endif
 }
 
-static list<pipeline::Filter> populateFilters(string const& input, string const& output, bool debug)
+static list<pipeline::Filter> populateFilters(string const& input, string const& output,
+                                              string const& huffmanDotOutput, bool debug)
 {
     list<pipeline::Filter> filters;
 
@@ -71,7 +72,7 @@ static list<pipeline::Filter> populateFilters(string const& input, string const&
         filters.emplace_back(pipeline::HuffmanDecoder{});
         filters.emplace_back(pipeline::RLEDecoder{});
     }
-    else
+    else if (input != "raw")
         throw std::runtime_error{"Invalid input format specified: " + input};
 
     if (output == "ppm")
@@ -79,13 +80,13 @@ static list<pipeline::Filter> populateFilters(string const& input, string const&
     else if (output == "rle")
         filters.emplace_back(pipeline::RLEEncoder{});
     else if (output == "huffman")
-        filters.emplace_back(pipeline::HuffmanEncoder{debug});
+        filters.emplace_back(pipeline::HuffmanEncoder{huffmanDotOutput, debug});
     else if (output == "rle+huffman")
     {
         filters.emplace_back(pipeline::RLEEncoder{});
-        filters.emplace_back(pipeline::HuffmanEncoder{debug});
+        filters.emplace_back(pipeline::HuffmanEncoder{huffmanDotOutput, debug});
     }
-    else
+    else if (output != "raw")
         throw std::runtime_error{"Invalid output format specified: " + input};
 
     if (input == output)
@@ -120,13 +121,17 @@ static pipeline::Buffer& read(istream& source, pipeline::Buffer& target)
 int main(int argc, const char* argv[])
 {
     flags::Flags cli;
+    cli.defineBool("help", 'h', "Shows this help.");
+    cli.defineBool("debug", 'D', "Enables optional debug printing to stderr.");
     cli.defineString("input-format", 'I', "FORMAT", "Specifies which format the input stream has.", "raw");
     cli.defineString("input-file", 'i', "PATH", "Specifies the path to the input file to read from.");
     cli.defineString("output-format", 'O', "FORMAT", "Specifies which format the output stream will be.",
                      "raw");
     cli.defineString("output-file", 'o', "PATH", "Specifies the path to the output file to write to.");
-    cli.defineBool("debug", 'D', "Enable some debug prints.");
-    cli.defineBool("help", 'h', "Shows this help.");
+    cli.defineString(
+        "output-dot-huffman", 0, "PATH",
+        "When Huffman encoding is chosen, the tree graph in dot file format is stored at this file location.",
+        "");
 
     if (error_code ec = cli.tryParse(argc, argv); ec)
     {
@@ -137,15 +142,16 @@ int main(int argc, const char* argv[])
     {
         string_view constexpr static header =
             "convert - command line tool for converting some file formats.\n"
-            "Copyright (c) 2019 by Christian Parpart and Kei Thoma.\n\n";
+            "Copyright (c) 2019 by Kei Thoma & Christian Parpart.\n\n";
 
         string_view constexpr static footer =
             "Supported file formats are:\n"
             "\n"
             " * raw: no encoding or decoding is happening\n"
-            " * ppm: PPM image file encoding/decoding\n"
-            " * rle: RLE image file encoding/decoding\n"
-            " * huffman: Huffman file encoding/decoding\n";
+            " * ppm: PPM image file\n"
+            " * rle: RLE image file\n"
+            " * huffman: Huffman (arbitrary file)\n"
+            " * rle+huffman: RLE embedded inside Huffman (image file)\n\n";
 
         cout << cli.helpText(header, footer, getTerminalWidth(STDOUT_FILENO), 32);
         return EXIT_SUCCESS;
@@ -158,14 +164,15 @@ int main(int argc, const char* argv[])
             auto const inputFormat = cli.getString("input-format");
             auto const outputFile = cli.getString("output-file");
             auto const outputFormat = cli.getString("output-format");
+            auto const huffmanDotOutput = cli.getString("output-dot-huffman");
             auto const debug = cli.getBool("debug");
 
-            auto source = ifstream{inputFile};
+            auto source = ifstream{inputFile, ios::binary};
             if (!source.is_open())
                 throw std::runtime_error("Could not open file.");
             auto sink = ofstream{outputFile, ios::binary | ios::trunc};
 
-            auto filters = populateFilters(inputFormat, outputFormat, debug);
+            auto filters = populateFilters(inputFormat, outputFormat, huffmanDotOutput, debug);
             auto input = pipeline::Buffer{};
             auto output = pipeline::Buffer{};
 

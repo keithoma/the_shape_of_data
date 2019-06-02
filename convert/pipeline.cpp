@@ -9,14 +9,15 @@
 // the License at: http://opensource.org/licenses/MIT
 
 #include "pipeline.hpp"
+#include "bitstream.hpp"
 #include "huffman.hpp"
 #include "utils.hpp"
-#include "bitstream.hpp"
 
 #include <sgfx/color.hpp>
 #include <sgfx/image.hpp>
 #include <sgfx/ppm.hpp>
 
+#include <fstream>
 #include <iostream>
 #include <iterator>
 #include <sstream>
@@ -286,10 +287,10 @@ void HuffmanDecoder::operator()(Buffer const& input, Buffer& output, bool last)
 
     // TODO: read code table
 
-	// TODO: read data payload
+    // TODO: read data payload
     size_t decodedByteCount = 0;
 
-	assert(decodedByteCount == originalSize);
+    assert(decodedByteCount == originalSize);
 }
 
 void HuffmanEncoder::operator()(Buffer const& input, Buffer& output, bool last)
@@ -297,51 +298,102 @@ void HuffmanEncoder::operator()(Buffer const& input, Buffer& output, bool last)
     ranges::copy(input, back_inserter(cache_));
 
     if (last)
-        encode(cache_, output, debug_);
+        encode(cache_, output, dotfile_, debug_);
 }
 
-void HuffmanEncoder::encode(Buffer const& input, Buffer& output, bool debug)
+void HuffmanEncoder::encode(Buffer const& input, Buffer& output, string const& dotfileName, bool debug)
 {
-    auto const static writeBits = [](vector<bool> const& bits, vector<bool>& writeCache) -> optional<Buffer> {
-        writeCache.insert(end(writeCache), begin(bits), end(bits));
-
-        size_t constexpr frameSize = 4096 * 8;
-
-        if (writeCache.size() < frameSize)
-            return nullopt;
-
-        auto out = huffman::to_bytes(writeCache, frameSize);
-        writeCache.erase(begin(writeCache), next(begin(writeCache), frameSize));
-        return {move(out)};
+	auto const static debugCode = [](uint8_t code, huffman::BitVector const& bits,
+                                     vector<uint8_t> const& bytesPadded) {
+        if (!bytesPadded.empty())
+        {
+            printf("[%03u]", code);
+            for (size_t i = 0; i < bytesPadded.size(); ++i)
+                printf(" %02x", bytesPadded[i]);
+            printf(" ");
+            for (size_t i = 0; i < bits.size(); ++i)
+            {
+                if ((i % 4) == 0)
+                    printf(" ");
+                printf("%c", bits[i] ? '1' : '0');
+            }
+            printf("\n");
+        }
     };
 
-    auto const static flushLastBits = [](vector<bool> const& writeCache) -> Buffer {
-        return huffman::to_bytes(writeCache);
+    auto const static debugSym = [](uint8_t sym, huffman::BitVector const& bits) {
+        printf("sym: %02x; bit seq:", sym);
+        for (size_t i = 0; i < bits.size(); ++i)
+        {
+            if ((i % 4) == 0)
+                printf(" ");
+            printf("%c", bits[i] ? '1' : '0');
+        }
+        printf("\n");
+    };
+
+	auto const static debugFlush = [](byte const* data, size_t count) {
+        printf("  flush: %zu bytes:\n", count);
+        for (size_t i = 0; i < count; ++i)
+        {
+            printf("    %02x", data[i]);
+            for (size_t k = 0; k < 8; ++k)
+            {
+                if ((k % 4) == 0)
+                    printf(" ");
+                printf("%c", ((to_integer<uint8_t>(data[i]) & (1 << (7 - k))) != 0) ? '1' : '0');
+            }
+            printf("\n");
+        }
+    };
+
+    auto const static flusher = [](Buffer& output, bool debug) {
+        return [debug, output = ref(output)](std::byte const* data, size_t count) mutable {
+			if (debug)
+				debugFlush(data, count);
+
+            //ranges::copy(util::span{data, count}, back_inserter(output));
+			for (size_t i = 0; i < count; ++i)
+                output.get().push_back(to_integer<uint8_t>(data[i]));
+		};
     };
 
     auto const root = huffman::encode(input);
+    auto const codeTable = huffman::CodeTable{huffman::encode(root)};
+	auto writer = bitstream::BitStreamWriter{flusher(output, debug)};
+
+    if (!dotfileName.empty())
+        ofstream{dotfileName, ios::trunc} << huffman::to_dot(root) << '\n';
+
+    // original filesize
+    writer.writeAligned<uint64_t>(input.size());
+
+    // code table
     if (debug)
-		clog << huffman::to_dot(root) << endl;
-
-    huffman::CodeTable const codeTable = huffman::encode(root);
-
-    write<uint64_t>(output, input.size());
-
+        printf("Code Table:\n");
     for (size_t code = 0; code < 256; ++code)
     {
         auto const& bits = codeTable[code];
-        auto const bytes = huffman::to_bytes(bits);
-        write<uint16_t>(output, static_cast<uint16_t>(bits.size()));
-        for (auto const b : bytes)
-            write<uint8_t>(output, b);
+        auto const bytesPadded = huffman::to_bytes(bits);
+
+		if (debug)
+			debugCode(static_cast<uint8_t>(code), bits, bytesPadded);
+
+        writer.writeAligned<uint16_t>(static_cast<uint16_t>(bits.size()));
+        for (auto const b : bytesPadded)
+            writer.writeAligned<uint8_t>(b);
     }
 
-    vector<bool> writeCache{};
+    // payload
+    if (debug)
+        printf("Data:\n");
     for (auto const sym : input)
-        if (auto const frame = writeBits(codeTable[sym], writeCache); frame.has_value())
-            output.insert(end(output), begin(*frame), end(*frame));
-    auto const lastFrame = flushLastBits(writeCache);
-    output.insert(end(output), begin(lastFrame), end(lastFrame));
+    {
+        if (debug)
+            debugSym(sym, codeTable[sym]);
+        writer.write(codeTable[sym]);
+    }
+    writer.flush();
 }
 
 }  // namespace pipeline

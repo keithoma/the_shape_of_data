@@ -30,16 +30,36 @@ class BitStreamWriter {
     {
     }
 
+    ~BitStreamWriter()
+    {
+        if (current_ != 0)
+            flush();
+    }
+
+    /// Writes POD value into thre stream.
+    /// The current bit position must be aligned.
+    template <typename T>
+    void writeAligned(T const& value)
+    {
+        if (current_ != 0)
+            throw logic_error{"Bitstream must be aligned in order to write non-bits."};
+
+        writer_((std::byte const*) &value, sizeof(value));
+    }
+
+    /// Writes a vector of bits into the stream.
     void write(std::vector<bool> const& bits)
     {
         for (bool bit : bits)
             write(bit);
     }
 
+    /// Writes a single bit into the stream.
     void write(bool bit)
     {
+		cache_ <<= 1;
         if (bit)
-            cache_ |= (1llu << ((sizeof(cache_) * 8) - current_));
+			cache_ |= 1;
 
         current_++;
 
@@ -47,6 +67,7 @@ class BitStreamWriter {
             flush();
     }
 
+    /// Flushes all pending bits into the underlying stream, potentially adding zero-padding.
     void flush()
     {
         writer_((std::byte const*) &cache_, sizeof(cache_));
@@ -97,9 +118,9 @@ class BitStreamReader {
     {
         if (current_ == sizeof(cache_) * 8)
         {
-			current_ = 0;
-			cache_ = 0;
-			reader_((std::byte*) &cache_, sizeof(cache_));
+            current_ = 0;
+            cache_ = 0;
+            reader_((std::byte*) &cache_, sizeof(cache_));
         }
 
         return (cache_ & (1llu << current_++)) != 0;

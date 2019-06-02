@@ -109,14 +109,16 @@ class RLEEncoder {
 
 class HuffmanEncoder {
   public:
-    explicit HuffmanEncoder(bool debug) : debug_{debug} {}
+    HuffmanEncoder(std::string dotfile, bool debug) : dotfile_{move(dotfile)}, debug_{debug} {}
+    HuffmanEncoder() : HuffmanEncoder{{}, false} {}
 
     void operator()(const Buffer& input, Buffer& output, bool last);
 
-    static void encode(Buffer const& input, Buffer& output, bool debug);
+    static void encode(Buffer const& input, Buffer& output, std::string const& dotfile, bool debug);
 
   private:
-    bool debug_;
+    std::string dotfile_;              // optional dotfile name to dump huffman tree graph to
+    bool debug_;                       // optional debug printing to stderr
     Buffer cache_{};                   // population cache
     std::vector<bool> pendingBits_{};  // write-out cache
 };
